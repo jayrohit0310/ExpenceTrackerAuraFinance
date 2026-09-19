@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/expense_tracker';
+let connectionPromise;
 
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true, trim: true },
@@ -57,9 +58,7 @@ function isValidObjectId(id) {
 async function initDatabase() {
   console.log('Connecting to MongoDB...');
   try {
-    await mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000
-    });
+    await connectDatabase();
     console.log('Successfully connected to MongoDB at:', MONGODB_URI);
     await User.init();
     await Budget.init();
@@ -69,6 +68,24 @@ async function initDatabase() {
     console.error('MongoDB connection failed:', error.message);
     process.exit(1);
   }
+}
+
+async function connectDatabase() {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (!connectionPromise) {
+    connectionPromise = mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000
+    }).catch((error) => {
+      connectionPromise = undefined;
+      throw error;
+    });
+  }
+
+  await connectionPromise;
+  return mongoose.connection;
 }
 
 async function closeDatabase() {
@@ -82,6 +99,7 @@ module.exports = {
   toApiDoc,
   toApiDocs,
   isValidObjectId,
+  connectDatabase,
   initDatabase,
   closeDatabase
 };
