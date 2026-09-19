@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const mongoose = require('mongoose');
@@ -18,6 +19,8 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -25,9 +28,12 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'personal-expense-tracker-super-secret-key-12345',
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/expense_tracker'
+  }),
   cookie: {
     maxAge: 1000 * 60 * 60 * 24,
-    secure: false,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax'
   }
 }));
