@@ -1805,3 +1805,42 @@ body.dark-theme .blob {
     flex: 1;
   }
 }
+
+/* UI Enhancements */
+.content-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.metric-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.btn:active {
+  transform: scale(0.96) !important;
+}
+.table-container {
+  -webkit-overflow-scrolling: touch;
+}
+.modal-overlay {
+  backdrop-filter: blur(8px) !important;
+}
+.modal-card {
+  animation: modalSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+@media (max-width: 600px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .modal-form-row {
+    grid-template-columns: 1fr;
+  }
+  .auth-card {
+    padding: 24px 16px;
+  }
+  .dashboard-grid {
+    gap: 16px;
+  }
+  .metric-card {
+    padding: 16px;
+  }
+}
