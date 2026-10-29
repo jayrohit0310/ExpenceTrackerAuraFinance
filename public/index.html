@@ -26,6 +26,15 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   
+  <!-- PWA & Mobile Optimization -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aura Finance">
+
   <!-- SheetJS CDN for Excel Export -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -40,6 +49,22 @@
       <span class="logo-text">Aura Finance</span>
     </div>
     <div class="mobile-header-actions">
+      <!-- Network Connectivity Indicator -->
+      <div id="network-status" class="network-badge online" title="Status: Online">
+        <span class="network-dot"></span>
+      </div>
+
+      <!-- Quick Refresh Button -->
+      <button onclick="handleManualRefresh()" class="btn-refresh-icon" id="mobile-btn-refresh" title="Refresh all data">
+        <i data-lucide="refresh-cw"></i>
+      </button>
+
+      <!-- Install App Pill Button -->
+      <button id="mobile-btn-install" class="btn-install-app-pill hidden" onclick="triggerPwaInstall()" title="Install App">
+        <i data-lucide="download"></i>
+        <span>Install</span>
+      </button>
+
       <!-- Theme Switcher -->
       <button onclick="toggleTheme()" class="btn-theme-toggle-icon" title="Toggle theme">
         <i data-lucide="sun" id="theme-icon-mobile"></i>
@@ -51,8 +76,12 @@
         <div id="mobile-dropdown-menu" class="mobile-dropdown hidden">
           <div class="dropdown-user-info">
             <strong id="mobile-dropdown-name">Demo User</strong>
-            <span>Active</span>
+            <span id="mobile-dropdown-status">Active</span>
           </div>
+          <button onclick="switchView('profile'); toggleMobileMenu();" class="dropdown-profile-btn">
+            <i data-lucide="user"></i>
+            <span>Profile Settings</span>
+          </button>
           <button onclick="handleLogout()" class="dropdown-logout-btn">
             <i data-lucide="log-out"></i>
             <span>Logout</span>
@@ -88,6 +117,20 @@
 
         <!-- Login Form -->
         <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+          <button type="button" class="btn btn-google btn-block" onclick="openGoogleAuthModal()">
+            <svg class="google-svg" viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Continue with Google</span>
+          </button>
+
+          <div class="auth-divider">
+            <span>or sign in with password</span>
+          </div>
+
           <div class="input-group">
             <label for="login-credential">Username or Email</label>
             <div class="input-wrapper">
@@ -97,14 +140,17 @@
           </div>
           
           <div class="input-group">
-            <label for="login-password">Password</label>
+            <div class="input-header-flex">
+              <label for="login-password">Password</label>
+              <button type="button" class="forgot-link-btn" onclick="openForgotPasswordModal()">Forgot Password?</button>
+            </div>
             <div class="input-wrapper">
               <i data-lucide="lock" class="input-icon"></i>
               <input type="password" id="login-password" placeholder="••••••••" required>
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary btn-block">
+          <button type="submit" class="btn btn-primary btn-block" id="btn-login-submit">
             <span>Sign In</span>
             <i data-lucide="arrow-right"></i>
           </button>
@@ -112,11 +158,33 @@
 
         <!-- Register Form -->
         <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+          <button type="button" class="btn btn-google btn-block" onclick="openGoogleAuthModal()">
+            <svg class="google-svg" viewBox="0 0 24 24" width="20" height="20">
+              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+            </svg>
+            <span>Sign up with Google</span>
+          </button>
+
+          <div class="auth-divider">
+            <span>or register with email</span>
+          </div>
+
+          <div class="input-group">
+            <label for="register-name">Full Name</label>
+            <div class="input-wrapper">
+              <i data-lucide="badge-check" class="input-icon"></i>
+              <input type="text" id="register-name" placeholder="e.g. Alex Morgan">
+            </div>
+          </div>
+
           <div class="input-group">
             <label for="register-username">Username</label>
             <div class="input-wrapper">
               <i data-lucide="user" class="input-icon"></i>
-              <input type="text" id="register-username" placeholder="e.g. johndoe" required>
+              <input type="text" id="register-username" placeholder="e.g. alexmorgan" required>
             </div>
           </div>
 
@@ -124,7 +192,7 @@
             <label for="register-email">Email Address</label>
             <div class="input-wrapper">
               <i data-lucide="mail" class="input-icon"></i>
-              <input type="email" id="register-email" placeholder="e.g. john@example.com" required>
+              <input type="email" id="register-email" placeholder="e.g. alex@example.com" required>
             </div>
           </div>
           
@@ -136,7 +204,7 @@
             </div>
           </div>
 
-          <button type="submit" class="btn btn-primary btn-block">
+          <button type="submit" class="btn btn-primary btn-block" id="btn-register-submit">
             <span>Create Account</span>
             <i data-lucide="user-plus"></i>
           </button>
@@ -201,17 +269,21 @@
       </nav>
 
       <div class="sidebar-footer">
+        <button id="sidebar-btn-install" class="btn-sidebar-install hidden" onclick="triggerPwaInstall()">
+          <i data-lucide="download"></i>
+          <span>Install Aura App</span>
+        </button>
         <button onclick="toggleTheme()" class="btn-theme-toggle" id="theme-toggle-desktop">
           <i data-lucide="sun" id="theme-icon-desktop"></i>
           <span>Theme Toggle</span>
         </button>
         <div class="user-profile-summary">
-          <div class="user-avatar">
+          <div class="user-avatar" id="sidebar-user-avatar">
             <span id="user-initials">D</span>
           </div>
           <div class="user-info">
             <span id="username-display" class="user-name">Demo User</span>
-            <span class="user-status">Active</span>
+            <span class="user-status" id="sidebar-user-status">Active</span>
           </div>
         </div>
         <button onclick="handleLogout()" class="btn-logout" title="Sign Out">
@@ -241,6 +313,11 @@
           </div>
           
           <div class="header-actions">
+            <!-- Global Refresh Button with Loader -->
+            <button class="btn btn-secondary btn-refresh" id="desktop-btn-refresh" onclick="handleManualRefresh()" title="Refresh All Data">
+              <i data-lucide="refresh-cw"></i>
+              <span>Refresh</span>
+            </button>
             <button class="btn btn-success" onclick="openTransactionModal('expense')">
               <i data-lucide="plus-circle"></i>
               <span>Add Expense</span>
@@ -692,39 +769,326 @@
         </div>
       </section>
 
-      <!-- VIEW 6: PROFILE -->
+      <!-- VIEW 6: APP PROFILE & ACCOUNT SETTINGS -->
       <section id="view-profile" class="content-view hidden">
-        <div class="content-card" style="max-width: 600px; margin: 0 auto;">
-          <div class="card-header">
-            <h3>Profile Settings</h3>
-            <p class="subtitle">Update your account credentials</p>
+        <div class="profile-dashboard">
+          
+          <!-- Hero Header Card -->
+          <div class="profile-hero-card">
+            <div class="profile-hero-bg">
+              <div class="profile-blob"></div>
+            </div>
+            <div class="profile-hero-content">
+              <div class="profile-avatar-wrapper">
+                <div class="profile-avatar-large" id="profile-avatar-display">
+                  <span id="profile-avatar-initials">D</span>
+                </div>
+                <button class="profile-avatar-edit-btn" onclick="openAvatarModal()" title="Change Avatar">
+                  <i data-lucide="camera"></i>
+                </button>
+              </div>
+
+              <div class="profile-hero-info">
+                <div class="profile-name-row">
+                  <h2 id="profile-hero-name">Demo User</h2>
+                  <span class="profile-badge verified" id="profile-verified-badge" title="Verified Account">
+                    <i data-lucide="shield-check"></i>
+                    <span>Verified</span>
+                  </span>
+                  <span class="profile-badge auth-type" id="profile-auth-badge">Local</span>
+                </div>
+                <p class="profile-username" id="profile-hero-handle">@demouser</p>
+                <div class="profile-meta-row">
+                  <span><i data-lucide="mail"></i> <span id="profile-hero-email">demo@example.com</span></span>
+                  <span><i data-lucide="calendar"></i> Member since <span id="profile-hero-joined">May 2026</span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Metrics Strip -->
+            <div class="profile-quick-stats">
+              <div class="profile-stat-box">
+                <span class="stat-label">Transactions</span>
+                <strong class="stat-val" id="profile-stat-tx-count">0</strong>
+              </div>
+              <div class="profile-stat-box">
+                <span class="stat-label">Active Budgets</span>
+                <strong class="stat-val" id="profile-stat-budget-count">0</strong>
+              </div>
+              <div class="profile-stat-box">
+                <span class="stat-label">Active Currency</span>
+                <strong class="stat-val" id="profile-stat-currency">₹ INR</strong>
+              </div>
+              <div class="profile-stat-box">
+                <span class="stat-label">Account Security</span>
+                <strong class="stat-val text-success">OTP Safeguard</strong>
+              </div>
+            </div>
           </div>
-          <form id="profile-form" onsubmit="handleUpdateProfile(event)" style="display:flex; flex-direction:column; gap:16px;">
-            <div class="input-group">
-              <label for="profile-username">Username</label>
-              <div class="input-wrapper">
-                <i data-lucide="user" class="input-icon"></i>
-                <input type="text" id="profile-username" required>
+
+          <!-- Profile Nav Tabs -->
+          <div class="profile-tabs-nav">
+            <button class="profile-tab-btn active" id="ptab-info" onclick="switchProfileTab('info')">
+              <i data-lucide="user"></i>
+              <span>Personal Info</span>
+            </button>
+            <button class="profile-tab-btn" id="ptab-preferences" onclick="switchProfileTab('preferences')">
+              <i data-lucide="sliders"></i>
+              <span>Preferences & App</span>
+            </button>
+            <button class="profile-tab-btn" id="ptab-security" onclick="switchProfileTab('security')">
+              <i data-lucide="lock"></i>
+              <span>Security & OTP</span>
+            </button>
+            <button class="profile-tab-btn" id="ptab-data" onclick="switchProfileTab('data')">
+              <i data-lucide="database"></i>
+              <span>Backup & Data</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: Personal Info -->
+          <div class="profile-tab-content" id="profile-pane-info">
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Personal Information</h3>
+                <p class="subtitle">Manage your personal identification details</p>
+              </div>
+              <form id="profile-form-info" onsubmit="handleUpdateProfileInfo(event)">
+                <div class="form-grid-2">
+                  <div class="input-group">
+                    <label for="profile-name">Full Name</label>
+                    <div class="input-wrapper">
+                      <i data-lucide="badge-check" class="input-icon"></i>
+                      <input type="text" id="profile-name" placeholder="Your Full Name">
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="profile-username">Username</label>
+                    <div class="input-wrapper">
+                      <i data-lucide="at-sign" class="input-icon"></i>
+                      <input type="text" id="profile-username" required>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="input-group">
+                    <label for="profile-email">Email Address</label>
+                    <div class="input-wrapper">
+                      <i data-lucide="mail" class="input-icon"></i>
+                      <input type="email" id="profile-email" required>
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="profile-phone">Phone Number</label>
+                    <div class="input-wrapper">
+                      <i data-lucide="phone" class="input-icon"></i>
+                      <input type="tel" id="profile-phone" placeholder="+91 98765 43210">
+                    </div>
+                  </div>
+                </div>
+
+                <div class="input-group">
+                  <label for="profile-bio">Personal Financial Note / Bio</label>
+                  <div class="input-wrapper">
+                    <textarea id="profile-bio" rows="2" placeholder="e.g. Focused on saving 30% of income and building wealth."></textarea>
+                  </div>
+                </div>
+
+                <div class="form-actions-end">
+                  <button type="submit" class="btn btn-primary" id="btn-save-profile-info">
+                    <i data-lucide="check"></i>
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB 2: Preferences & App Settings -->
+          <div class="profile-tab-content hidden" id="profile-pane-preferences">
+            <div class="content-card">
+              <div class="card-header">
+                <h3>App Settings & Preferences</h3>
+                <p class="subtitle">Customize currency symbol, themes, and display settings</p>
+              </div>
+              <form id="profile-form-prefs" onsubmit="handleUpdatePreferences(event)">
+                <div class="form-grid-2">
+                  <div class="input-group">
+                    <label for="profile-currency">Primary Currency</label>
+                    <select id="profile-currency" class="styled-select" onchange="previewCurrencyChange(this.value)">
+                      <option value="INR">₹ INR - Indian Rupee</option>
+                      <option value="USD">$ USD - US Dollar</option>
+                      <option value="EUR">€ EUR - Euro</option>
+                      <option value="GBP">£ GBP - British Pound</option>
+                      <option value="JPY">¥ JPY - Japanese Yen</option>
+                      <option value="CAD">C$ CAD - Canadian Dollar</option>
+                      <option value="AUD">A$ AUD - Australian Dollar</option>
+                      <option value="AED">AED - Emirati Dirham</option>
+                    </select>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="profile-theme-select">Interface Theme</label>
+                    <select id="profile-theme-select" class="styled-select" onchange="applyThemePreference(this.value)">
+                      <option value="light">Light Theme (Crisp & Clean)</option>
+                      <option value="dark">Dark Theme (Midnight OLED)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="form-grid-2">
+                  <div class="input-group">
+                    <label for="profile-date-format">Date Display Format</label>
+                    <select id="profile-date-format" class="styled-select">
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (Standard ISO)</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY (Indian / European)</option>
+                      <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
+                    </select>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="profile-default-view">Default Landing Screen</label>
+                    <select id="profile-default-view" class="styled-select">
+                      <option value="dashboard">Dashboard Overview</option>
+                      <option value="transactions">Transactions Vault</option>
+                      <option value="budgets">Budgets & Limits</option>
+                      <option value="analytics">Analytics & Trends</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="app-feature-card">
+                  <div class="feature-info">
+                    <h4>PWA Mobile App Experience</h4>
+                    <p>Install Aura Finance onto your smartphone or desktop for a fullscreen app experience.</p>
+                  </div>
+                  <button type="button" class="btn btn-secondary" onclick="triggerPwaInstall()">
+                    <i data-lucide="download"></i>
+                    <span>Install App</span>
+                  </button>
+                </div>
+
+                <div class="form-actions-end">
+                  <button type="submit" class="btn btn-primary" id="btn-save-profile-prefs">
+                    <i data-lucide="check"></i>
+                    <span>Save Preferences</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB 3: Security & Password -->
+          <div class="profile-tab-content hidden" id="profile-pane-security">
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Security & Authentication</h3>
+                <p class="subtitle">Password management and OTP authentication safeguards</p>
+              </div>
+
+              <!-- OTP 2FA Status Card -->
+              <div class="security-status-card">
+                <div class="security-icon-circle">
+                  <i data-lucide="shield-check"></i>
+                </div>
+                <div class="security-status-text">
+                  <h4>Email OTP Authentication Active</h4>
+                  <p>Your account is protected with 6-digit OTP verification on registered email for password recovery and account safety.</p>
+                </div>
+                <div class="security-status-pill">Active</div>
+              </div>
+
+              <form id="profile-form-security" onsubmit="handleUpdatePassword(event)">
+                <div class="input-group">
+                  <label for="profile-new-password">New Password</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="lock" class="input-icon"></i>
+                    <input type="password" id="profile-new-password" placeholder="At least 6 characters" minlength="6" oninput="checkPasswordStrength(this.value, 'profile-pwd-strength')">
+                  </div>
+                  <div id="profile-pwd-strength" class="password-strength-bar"></div>
+                </div>
+
+                <div class="input-group">
+                  <label for="profile-confirm-password">Confirm New Password</label>
+                  <div class="input-wrapper">
+                    <i data-lucide="shield" class="input-icon"></i>
+                    <input type="password" id="profile-confirm-password" placeholder="Re-type new password" minlength="6">
+                  </div>
+                </div>
+
+                <div class="form-actions-end">
+                  <button type="submit" class="btn btn-primary" id="btn-save-profile-pwd">
+                    <i data-lucide="key"></i>
+                    <span>Update Password</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <!-- TAB 4: Data & Backup -->
+          <div class="profile-tab-content hidden" id="profile-pane-data">
+            <div class="content-card">
+              <div class="card-header">
+                <h3>Data Export & Backup</h3>
+                <p class="subtitle">Safeguard and restore your personal ledger</p>
+              </div>
+
+              <div class="data-actions-grid">
+                <!-- Backup Download Card -->
+                <div class="data-card">
+                  <div class="data-card-icon">
+                    <i data-lucide="download-cloud"></i>
+                  </div>
+                  <div class="data-card-body">
+                    <h4>Export Complete Ledger (JSON)</h4>
+                    <p>Download a complete JSON file containing all your transactions, categories, and active budget limits.</p>
+                    <button class="btn btn-secondary" onclick="handleExportData()">
+                      <i data-lucide="download"></i>
+                      <span>Download JSON Backup</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Restore Backup Card -->
+                <div class="data-card">
+                  <div class="data-card-icon">
+                    <i data-lucide="upload-cloud"></i>
+                  </div>
+                  <div class="data-card-body">
+                    <h4>Import Backup (JSON)</h4>
+                    <p>Restore transactions and budgets from a previously exported Aura Finance JSON backup file.</p>
+                    <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="handleFileSelected(event)">
+                    <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()">
+                      <i data-lucide="upload"></i>
+                      <span>Select JSON File</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Danger Zone -->
+              <div class="danger-zone-card">
+                <div class="danger-zone-header">
+                  <i data-lucide="alert-triangle"></i>
+                  <div>
+                    <h4>Danger Zone</h4>
+                    <p>Irreversible actions for your personal ledger</p>
+                  </div>
+                </div>
+                <div class="danger-zone-actions">
+                  <button class="btn btn-danger" onclick="handleClearAllTransactions()">
+                    <i data-lucide="trash-2"></i>
+                    <span>Clear All Transactions</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="input-group">
-              <label for="profile-email">Email Address</label>
-              <div class="input-wrapper">
-                <i data-lucide="mail" class="input-icon"></i>
-                <input type="email" id="profile-email" required>
-              </div>
-            </div>
-            <div class="input-group">
-              <label for="profile-password">New Password (leave blank to keep current)</label>
-              <div class="input-wrapper">
-                <i data-lucide="lock" class="input-icon"></i>
-                <input type="password" id="profile-password" minlength="6">
-              </div>
-            </div>
-            <div style="display:flex; justify-content:flex-end; margin-top: 10px;">
-              <button type="submit" class="btn btn-primary">Save Changes</button>
-            </div>
-          </form>
+          </div>
+
         </div>
       </section>
     </main>
@@ -798,6 +1162,226 @@
       </form>
     </div>
   </div>
+
+  <!-- ==========================================
+       MODAL 2: FORGOT PASSWORD WITH OTP FLOW
+       ========================================== -->
+  <div id="forgot-password-modal" class="modal-overlay hidden">
+    <div class="modal-card modal-auth-card">
+      <div class="modal-header">
+        <div class="modal-title-with-icon">
+          <div class="modal-icon-badge">
+            <i data-lucide="key-round"></i>
+          </div>
+          <div>
+            <h3>Account Recovery</h3>
+            <p class="subtitle" id="fp-subtitle">Verify your registered email address</p>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeForgotPasswordModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <!-- STEP 1: Enter Registered Email -->
+      <div id="fp-step-1" class="fp-step-pane">
+        <form onsubmit="handleSendOtp(event)">
+          <p class="fp-instruction">Enter your registered email address. We'll send you a secure 6-digit one-time verification code.</p>
+          <div class="input-group">
+            <label for="fp-email">Registered Email</label>
+            <div class="input-wrapper">
+              <i data-lucide="mail" class="input-icon"></i>
+              <input type="email" id="fp-email" placeholder="e.g. yourname@example.com" required>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btn-fp-send-otp">
+              <span>Send OTP Code</span>
+              <i data-lucide="arrow-right"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- STEP 2: Enter 6-Digit OTP -->
+      <div id="fp-step-2" class="fp-step-pane hidden">
+        <form onsubmit="handleVerifyOtp(event)">
+          <p class="fp-instruction">
+            Enter the 6-digit code sent to <strong id="fp-target-email" class="text-primary">your email</strong>.
+          </p>
+
+          <!-- Dev Notification Alert if SMTP not configured -->
+          <div id="fp-dev-otp-banner" class="dev-otp-banner hidden">
+            <i data-lucide="bell"></i>
+            <div>
+              <span>Verification Code Preview:</span>
+              <strong id="fp-dev-otp-code">123456</strong>
+            </div>
+          </div>
+
+          <!-- 6-digit input fields -->
+          <div class="otp-inputs-wrapper">
+            <input type="text" class="otp-digit" id="otp-1" maxlength="1" pattern="[0-9]" inputmode="numeric" required autofocus>
+            <input type="text" class="otp-digit" id="otp-2" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+            <input type="text" class="otp-digit" id="otp-3" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+            <input type="text" class="otp-digit" id="otp-4" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+            <input type="text" class="otp-digit" id="otp-5" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+            <input type="text" class="otp-digit" id="otp-6" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+          </div>
+
+          <div class="otp-resend-row">
+            <span id="otp-timer-text">Resend code in <strong id="otp-timer-count">60</strong>s</span>
+            <button type="button" id="btn-resend-otp" class="btn-text-link hidden" onclick="handleResendOtp()">Resend Code</button>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="fpGoToStep(1)">Back</button>
+            <button type="submit" class="btn btn-primary" id="btn-fp-verify-otp">
+              <span>Verify OTP</span>
+              <i data-lucide="check-circle-2"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- STEP 3: Enter New Password -->
+      <div id="fp-step-3" class="fp-step-pane hidden">
+        <form onsubmit="handleResetPassword(event)">
+          <p class="fp-instruction">Identity verified. Choose a strong new password for your Aura Finance account.</p>
+          
+          <div class="input-group">
+            <label for="fp-new-password">New Password</label>
+            <div class="input-wrapper">
+              <i data-lucide="lock" class="input-icon"></i>
+              <input type="password" id="fp-new-password" placeholder="At least 6 characters" minlength="6" required oninput="checkPasswordStrength(this.value, 'fp-pwd-strength')">
+            </div>
+            <div id="fp-pwd-strength" class="password-strength-bar"></div>
+          </div>
+
+          <div class="input-group">
+            <label for="fp-confirm-password">Confirm New Password</label>
+            <div class="input-wrapper">
+              <i data-lucide="shield" class="input-icon"></i>
+              <input type="password" id="fp-confirm-password" placeholder="Re-enter new password" minlength="6" required>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
+            <button type="submit" class="btn btn-success" id="btn-fp-reset-pwd">
+              <span>Reset & Sign In</span>
+              <i data-lucide="check"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- STEP 4: Reset Success -->
+      <div id="fp-step-4" class="fp-step-pane hidden text-center">
+        <div class="fp-success-icon">
+          <i data-lucide="check-circle" class="text-success"></i>
+        </div>
+        <h4>Password Reset Successfully!</h4>
+        <p class="fp-instruction">Your account password has been updated. You can now log into Aura Finance with your new credentials.</p>
+        <button class="btn btn-primary btn-block" onclick="finishForgotPassword()">
+          <span>Proceed to Login</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 3: GOOGLE / GMAIL ACCOUNT SELECTOR
+       ========================================== -->
+  <div id="google-auth-modal" class="modal-overlay hidden">
+    <div class="modal-card modal-google-card">
+      <div class="google-modal-header">
+        <svg viewBox="0 0 24 24" width="28" height="28">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+        </svg>
+        <h3>Sign in with Google</h3>
+        <p>Choose an account to continue to <strong>Aura Finance</strong></p>
+        <button class="btn-close" onclick="closeGoogleAuthModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="google-accounts-list">
+        <!-- 1-Click Demo / Personal Account -->
+        <button type="button" class="google-account-item" onclick="handleGoogleAccountPick('Jay Rohit', 'jayrohit0310@gmail.com')">
+          <div class="google-avatar-circle bg-blue">J</div>
+          <div class="google-account-details">
+            <strong>Jay Rohit</strong>
+            <span>jayrohit0310@gmail.com</span>
+          </div>
+          <i data-lucide="chevron-right" class="arrow-icon"></i>
+        </button>
+
+        <!-- Demo Account 2 -->
+        <button type="button" class="google-account-item" onclick="handleGoogleAccountPick('Alex Finance', 'alex.finance@gmail.com')">
+          <div class="google-avatar-circle bg-green">A</div>
+          <div class="google-account-details">
+            <strong>Alex Finance</strong>
+            <span>alex.finance@gmail.com</span>
+          </div>
+          <i data-lucide="chevron-right" class="arrow-icon"></i>
+        </button>
+
+        <!-- Custom Gmail Input Toggle -->
+        <div class="google-custom-entry">
+          <div class="auth-divider"><span>or enter any Gmail address</span></div>
+          <form onsubmit="handleCustomGoogleSignIn(event)" class="google-custom-form">
+            <div class="input-wrapper">
+              <i data-lucide="mail" class="input-icon"></i>
+              <input type="email" id="custom-google-email" placeholder="you@gmail.com" required>
+            </div>
+            <button type="submit" class="btn btn-google-submit">
+              <span>Continue</span>
+              <i data-lucide="arrow-right"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="google-modal-footer">
+        <i data-lucide="shield-check"></i>
+        <span>To continue, Google will share your name, email address, and profile picture with Aura Finance.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 4: AVATAR PICKER
+       ========================================== -->
+  <div id="avatar-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Choose Profile Avatar</h3>
+        <button class="btn-close" onclick="closeAvatarModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      <div class="avatar-grid" id="avatar-grid-list">
+        <!-- Generated by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MOBILE FLOATING ACTION BUTTON (FAB)
+       ========================================== -->
+  <button id="mobile-fab" class="mobile-fab" onclick="openTransactionModal('expense')" title="Quick Add Record">
+    <i data-lucide="plus"></i>
+  </button>
 
   <!-- ==========================================
        BOTTOM MOBILE NAVIGATION BAR

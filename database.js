@@ -1,12 +1,24 @@
 const mongoose = require('mongoose');
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/expense_tracker';
+const LOCAL_URI = 'mongodb://127.0.0.1:27017/expense_tracker';
+let activeMongoUri = process.env.MONGODB_URI || LOCAL_URI;
 let connectionPromise;
 
 const userSchema = new mongoose.Schema({
+  name: { type: String, default: '' },
   username: { type: String, required: true, unique: true, trim: true },
   email: { type: String, required: true, unique: true, trim: true, lowercase: true },
-  password_hash: { type: String, required: true },
+  password_hash: { type: String, default: '' },
+  auth_provider: { type: String, enum: ['local', 'google'], default: 'local' },
+  google_id: { type: String, default: null, sparse: true },
+  avatar: { type: String, default: '' },
+  currency: { type: String, default: 'INR' },
+  phone: { type: String, default: '' },
+  bio: { type: String, default: '' },
+  otp: {
+    code: { type: String, default: null },
+    expires_at: { type: Date, default: null }
+  },
   created_at: { type: Date, default: Date.now }
 });
 
@@ -44,6 +56,8 @@ function toApiDoc(doc) {
   }
   delete obj._id;
   delete obj.__v;
+  delete obj.password_hash;
+  delete obj.otp;
   return obj;
 }
 
@@ -59,7 +73,7 @@ async function initDatabase() {
   console.log('Connecting to MongoDB...');
   try {
     await connectDatabase();
-    console.log('Successfully connected to MongoDB at:', MONGODB_URI);
+    console.log('Successfully connected to MongoDB.');
     await User.init();
     await Budget.init();
     await Transaction.init();
@@ -76,9 +90,22 @@ async function connectDatabase() {
   }
 
   if (!connectionPromise) {
-    connectionPromise = mongoose.connect(MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000
-    }).catch((error) => {
+    connectionPromise = (async () => {
+      try {
+        const masked = activeMongoUri.includes('@') ? activeMongoUri.split('@')[1] : activeMongoUri;
+        console.log(`Connecting to MongoDB (${masked})...`);
+        await mongoose.connect(activeMongoUri, { serverSelectionTimeoutMS: 3000 });
+        return mongoose.connection;
+      } catch (err) {
+        if (activeMongoUri !== LOCAL_URI) {
+          console.warn(`Primary MongoDB failed (${err.message}). Falling back to local MongoDB at ${LOCAL_URI}...`);
+          activeMongoUri = LOCAL_URI;
+          await mongoose.connect(LOCAL_URI, { serverSelectionTimeoutMS: 3000 });
+          return mongoose.connection;
+        }
+        throw err;
+      }
+    })().catch((error) => {
       connectionPromise = undefined;
       throw error;
     });

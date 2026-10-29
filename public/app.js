@@ -5,6 +5,8 @@
 // Global SPA State
 const state = {
   user: null,
+  currency: 'INR',
+  currencySymbol: '₹',
   transactions: [],
   budgets: [],
   summary: {
@@ -16,6 +18,15 @@ const state = {
   activeView: 'dashboard',
   selectedMonth: '', // YYYY-MM format
   theme: 'light', // 'light' or 'dark'
+  isLoadingTransactions: false,
+  isRefreshing: false,
+  deferredPwaPrompt: null,
+  otpState: {
+    email: '',
+    targetStep: 1,
+    timerInterval: null,
+    remainingSeconds: 60
+  },
   
   // Transaction list filtering, sorting, and pagination
   filters: {
@@ -57,6 +68,50 @@ const state = {
     utilization: null
   }
 };
+
+const CURRENCY_SYMBOLS = {
+  INR: '₹',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  CAD: 'C$',
+  AUD: 'A$',
+  AED: 'AED '
+};
+
+function getCurrencySymbol() {
+  const curr = (state.user && state.user.currency) || state.currency || 'INR';
+  return CURRENCY_SYMBOLS[curr] || '₹';
+}
+
+function formatCurrency(amount) {
+  const curr = (state.user && state.user.currency) || state.currency || 'INR';
+  try {
+    return new Intl.NumberFormat(curr === 'INR' ? 'en-IN' : 'en-US', {
+      style: 'currency',
+      currency: curr
+    }).format(amount);
+  } catch (e) {
+    return `${getCurrencySymbol()}${Number(amount).toFixed(2)}`;
+  }
+}
+
+function setButtonLoading(btn, isLoading, loadingText = 'Processing...') {
+  if (!btn) return;
+  if (isLoading) {
+    btn.disabled = true;
+    btn.dataset.originalHtml = btn.innerHTML;
+    btn.classList.add('is-loading');
+    btn.innerHTML = `<span style="opacity: 0.25;">${loadingText}</span>`;
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('is-loading');
+    if (btn.dataset.originalHtml) {
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  }
+}
 
 // Standard Categories Configuration
 const CATEGORIES = {
@@ -146,6 +201,33 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateThemeIcons();
 
+  // Register PWA Service Worker for offline capability
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => console.log('Aura PWA Service Worker active:', reg.scope))
+        .catch((err) => console.log('SW registration error:', err));
+    });
+  }
+
+  // Network Status Monitor
+  updateNetworkStatus();
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+
+  // PWA Install Prompt Listener
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    state.deferredPwaPrompt = e;
+    const sidebarBtn = document.getElementById('sidebar-btn-install');
+    const mobileBtn = document.getElementById('mobile-btn-install');
+    if (sidebarBtn) sidebarBtn.classList.remove('hidden');
+    if (mobileBtn) mobileBtn.classList.remove('hidden');
+  });
+
+  // Setup 6-digit OTP Inputs
+  setupOtpInputs();
+
   // Check session status
   checkSession();
   
@@ -165,6 +247,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+function updateNetworkStatus() {
+  const badge = document.getElementById('network-status');
+  if (!badge) return;
+  if (navigator.onLine) {
+    badge.className = 'network-badge online';
+    badge.innerHTML = '<span class="network-dot"></span><span class="network-text">Online</span>';
+    badge.title = 'Online: Real-time syncing active';
+  } else {
+    badge.className = 'network-badge offline';
+    badge.innerHTML = '<span class="network-dot"></span><span class="network-text">Offline</span>';
+    badge.title = 'Offline: Local changes will sync when reconnected';
+  }
+}
+
+async function triggerPwaInstall() {
+  if (state.deferredPwaPrompt) {
+    state.deferredPwaPrompt.prompt();
+    const { outcome } = await state.deferredPwaPrompt.userChoice;
+    if (outcome === 'accepted') {
+      getToast().fire({ icon: 'success', title: 'Aura App installed!' });
+    }
+    state.deferredPwaPrompt = null;
+    const sidebarBtn = document.getElementById('sidebar-btn-install');
+    const mobileBtn = document.getElementById('mobile-btn-install');
+    if (sidebarBtn) sidebarBtn.classList.add('hidden');
+    if (mobileBtn) mobileBtn.classList.add('hidden');
+  } else {
+    const sw = getSwalTheme();
+    Swal.fire({
+      icon: 'info',
+      title: 'Install Aura Finance App',
+      html: `
+        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
+          <p><strong>Android Chrome:</strong> Tap Menu <strong>⋮</strong> &gt; Select <strong>Install App</strong>.</p>
+          <p style="margin-top: 8px;"><strong>iPhone / iOS Safari:</strong> Tap Share <i data-lucide="share" style="width:16px;height:16px;display:inline;"></i> &gt; Select <strong>Add to Home Screen</strong>.</p>
+          <p style="margin-top: 8px;"><strong>Desktop Chrome / Edge:</strong> Click the install icon in the address bar.</p>
+        </div>
+      `,
+      background: sw.background,
+      color: sw.color,
+      confirmButtonColor: sw.confirmButtonColor,
+      didOpen: () => lucide.createIcons()
+    });
+  }
+}
 
 async function checkSession() {
   try {
@@ -187,31 +315,52 @@ function showAuthScreen() {
   document.getElementById('app-container').classList.add('hidden');
   document.getElementById('mobile-header').classList.add('hidden');
   document.getElementById('mobile-nav').classList.add('hidden');
+  const fab = document.getElementById('mobile-fab');
+  if (fab) fab.classList.add('hidden');
   state.user = null;
   lucide.createIcons();
 }
 
 function handleLoginSuccess(user) {
   state.user = user;
+  state.currency = user.currency || 'INR';
+  
   document.getElementById('auth-container').classList.add('hidden');
   document.getElementById('app-container').classList.remove('hidden');
   
   // Show header and mobile components
-  if (window.innerWidth <= 768) {
+  if (window.innerWidth <= 900) {
     document.getElementById('mobile-header').classList.remove('hidden');
     document.getElementById('mobile-nav').classList.remove('hidden');
   }
+  const fab = document.getElementById('mobile-fab');
+  if (fab) fab.classList.remove('hidden');
 
   // Update profile name variables
-  document.getElementById('username-display').textContent = user.username;
-  document.getElementById('user-initials').textContent = user.username.substring(0, 2).toUpperCase();
-  document.getElementById('mobile-user-initials').textContent = user.username.substring(0, 2).toUpperCase();
-  document.getElementById('mobile-dropdown-name').textContent = user.username;
-  document.getElementById('header-greeting').textContent = `Welcome back, ${user.username}`;
+  const displayName = user.name || user.username;
+  const initials = displayName.substring(0, 2).toUpperCase();
+  
+  document.getElementById('username-display').textContent = displayName;
+  document.getElementById('user-initials').textContent = initials;
+  document.getElementById('mobile-user-initials').textContent = initials;
+  document.getElementById('mobile-dropdown-name').textContent = displayName;
+  document.getElementById('header-greeting').textContent = `Welcome back, ${displayName}`;
+
+  // Update modal currency label
+  document.querySelectorAll('.currency-prefix').forEach(el => {
+    el.textContent = getCurrencySymbol();
+  });
+  const modalAmtLabel = document.querySelector('label[for="modal-tx-amount"]');
+  if (modalAmtLabel) {
+    modalAmtLabel.textContent = `Amount (${getCurrencySymbol()})`;
+  }
   
   // Format top header dates
   const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
   document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', options);
+
+  // Populate rich profile section
+  populateProfileDashboard(user);
 
   // Initialize data loading
   fetchData();
@@ -267,8 +416,56 @@ function toggleMobileMenu() {
 }
 
 // ==========================================
-// API Handlers (Data Retrieval)
+// API Handlers (Data Retrieval & Refresh)
 // ==========================================
+
+function renderTransactionsSkeleton() {
+  const container = document.getElementById('transactions-list');
+  if (!container) return;
+  let rows = '';
+  for (let i = 0; i < 5; i++) {
+    rows += `
+      <tr class="tx-skeleton-row">
+        <td><div class="skeleton-shimmer skeleton-badge"></div></td>
+        <td><div class="skeleton-shimmer skeleton-text"></div></td>
+        <td><div class="skeleton-shimmer skeleton-text long"></div></td>
+        <td><div class="skeleton-shimmer skeleton-text short"></div></td>
+        <td class="text-right"><div class="skeleton-shimmer skeleton-text short" style="margin-left:auto;"></div></td>
+        <td class="text-center"><div class="skeleton-shimmer skeleton-actions"></div></td>
+      </tr>
+    `;
+  }
+  container.innerHTML = rows;
+}
+
+async function handleManualRefresh() {
+  const desktopBtn = document.getElementById('desktop-btn-refresh');
+  const mobileBtn = document.getElementById('mobile-btn-refresh');
+  if (desktopBtn) desktopBtn.classList.add('is-refreshing');
+  if (mobileBtn) mobileBtn.classList.add('is-refreshing');
+  
+  const txTableLoader = document.getElementById('tx-table-loader');
+  if (txTableLoader) txTableLoader.classList.remove('hidden');
+
+  renderTransactionsSkeleton();
+
+  try {
+    await fetchData();
+    getToast().fire({
+      icon: 'success',
+      title: 'Ledger Refreshed'
+    });
+  } catch (err) {
+    console.error('Refresh error:', err);
+  } finally {
+    setTimeout(() => {
+      if (desktopBtn) desktopBtn.classList.remove('is-refreshing');
+      if (mobileBtn) mobileBtn.classList.remove('is-refreshing');
+      if (txTableLoader) txTableLoader.classList.add('hidden');
+    }, 450);
+  }
+}
+
 async function fetchData() {
   // Show Loading Animation
   showLoading(true);
@@ -407,7 +604,7 @@ function switchView(viewName) {
   } else if (viewName === 'reports') {
     resetReportView();
   } else if (viewName === 'profile') {
-    populateProfileForm();
+    populateProfileDashboard(state.user);
   }
   
   lucide.createIcons();
@@ -428,6 +625,7 @@ function updateUI() {
   renderTransactionsList();
   renderBudgetsList();
   populateFilterCategoryDropdown();
+  populateProfileDashboard(state.user);
   lucide.createIcons();
 }
 
@@ -435,18 +633,16 @@ function updateUI() {
 // Dashboard Metric & Data Renderers
 // ==========================================
 function renderMetrics() {
-  const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-  
   // Compute savings rate
   const income = state.summary.totalIncome;
   const expense = state.summary.totalExpense;
   const savings = income - expense;
   const rate = income > 0 ? ((savings / income) * 100).toFixed(0) : 0;
   
-  document.getElementById('metric-balance').textContent = formatter.format(savings);
-  document.getElementById('metric-income').textContent = formatter.format(income);
-  document.getElementById('metric-expense').textContent = formatter.format(expense);
-  document.getElementById('metric-savings').textContent = formatter.format(savings);
+  document.getElementById('metric-balance').textContent = formatCurrency(savings);
+  document.getElementById('metric-income').textContent = formatCurrency(income);
+  document.getElementById('metric-expense').textContent = formatCurrency(expense);
+  document.getElementById('metric-savings').textContent = formatCurrency(savings);
   
   const rateBadge = document.getElementById('metric-savings-rate');
   rateBadge.textContent = `${rate}%`;
@@ -482,7 +678,6 @@ function renderDashboardBudgets() {
   budgets.forEach(b => {
     const percentage = b.limit_amount > 0 ? (b.spent / b.limit_amount) * 100 : 0;
     const formattedPercent = percentage.toFixed(0);
-    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
 
     let fillClass = '';
     let warningHTML = '';
@@ -491,7 +686,7 @@ function renderDashboardBudgets() {
       fillClass = 'exceeded';
       warningHTML = `
         <span class="budget-limit-exceeded-warning">
-          <i data-lucide="alert-triangle"></i> Exceeded limit by ${formatter.format(b.spent - b.limit_amount)}
+          <i data-lucide="alert-triangle"></i> Exceeded limit by ${formatCurrency(b.spent - b.limit_amount)}
         </span>
       `;
     } else if (percentage >= 80) {
@@ -507,7 +702,7 @@ function renderDashboardBudgets() {
       <div class="budget-bar-container">
         <div class="budget-bar-meta">
           <span class="budget-bar-category">${b.category}</span>
-          <span class="budget-bar-usage">${formatter.format(b.spent)} of ${formatter.format(b.limit_amount)} (${formattedPercent}%)</span>
+          <span class="budget-bar-usage">${formatCurrency(b.spent)} of ${formatCurrency(b.limit_amount)} (${formattedPercent}%)</span>
         </div>
         <div class="budget-track">
           <div class="budget-fill ${fillClass}" style="width: ${Math.min(percentage, 100)}%"></div>
@@ -539,7 +734,6 @@ function renderDashboardTransactions() {
   }
 
   recent.forEach(tx => {
-    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
     const amountClass = tx.type === 'income' ? 'text-success font-semibold' : 'text-danger';
     const amountPrefix = tx.type === 'income' ? '+' : '-';
     
@@ -550,7 +744,7 @@ function renderDashboardTransactions() {
           ${tx.description || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}
         </td>
         <td style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="text-right ${amountClass}">${amountPrefix}${formatter.format(tx.amount)}</td>
+        <td class="text-right ${amountClass}">${amountPrefix}${formatCurrency(tx.amount)}</td>
       </tr>
     `;
     container.insertAdjacentHTML('beforeend', rowHTML);
@@ -703,7 +897,6 @@ function renderTransactionsList() {
   }
 
   pageItems.forEach(tx => {
-    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
     const typeBadge = tx.type === 'income' 
       ? '<span class="badge badge-income"><i data-lucide="arrow-up-right"></i>Income</span>'
       : '<span class="badge badge-expense"><i data-lucide="arrow-down-left"></i>Expense</span>';
@@ -719,7 +912,7 @@ function renderTransactionsList() {
           ${tx.description || '<span style="color: var(--text-muted-dark); font-style: italic;">No description</span>'}
         </td>
         <td style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatter.format(tx.amount)}</td>
+        <td class="text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatCurrency(tx.amount)}</td>
         <td class="text-center">
           <div style="display: flex; gap: 8px; justify-content: center;">
             <button class="btn-icon edit-btn" onclick="openTransactionModal('${tx.type}', '${tx.id}')" title="Edit record">
@@ -879,6 +1072,7 @@ function closeTransactionModal() {
 async function handleSaveTransaction(e) {
   e.preventDefault();
   
+  const submitBtn = document.getElementById('modal-tx-submit-btn');
   const id = document.getElementById('modal-tx-id').value;
   const type = document.querySelector('input[name="tx-type"]:checked').value;
   const amount = parseFloat(document.getElementById('modal-tx-amount').value);
@@ -890,6 +1084,8 @@ async function handleSaveTransaction(e) {
     getToast().fire({ icon: 'warning', title: 'Please select a category' });
     return;
   }
+
+  setButtonLoading(submitBtn, true, 'Saving record...');
 
   const payload = { type, amount, category, date, description };
   const method = id ? 'PUT' : 'POST';
@@ -924,6 +1120,8 @@ async function handleSaveTransaction(e) {
     }
   } catch (error) {
     console.error('Failed to commit transaction:', error);
+  } finally {
+    setButtonLoading(submitBtn, false, 'Save Record');
   }
 }
 
@@ -1995,8 +2193,11 @@ function switchAuthTab(tab) {
 
 async function handleLogin(e) {
   e.preventDefault();
+  const submitBtn = document.getElementById('btn-login-submit');
   const credential = document.getElementById('login-credential').value;
   const password = document.getElementById('login-password').value;
+
+  setButtonLoading(submitBtn, true, 'Signing In...');
 
   try {
     const response = await fetch('/api/auth/login', {
@@ -2023,20 +2224,27 @@ async function handleLogin(e) {
     }
   } catch (err) {
     console.error('Login error:', err);
+  } finally {
+    setButtonLoading(submitBtn, false, '<span>Sign In</span> <i data-lucide="arrow-right"></i>');
+    lucide.createIcons();
   }
 }
 
 async function handleRegister(e) {
   e.preventDefault();
+  const submitBtn = document.getElementById('btn-register-submit');
+  const name = document.getElementById('register-name').value;
   const username = document.getElementById('register-username').value;
   const email = document.getElementById('register-email').value;
   const password = document.getElementById('register-password').value;
+
+  setButtonLoading(submitBtn, true, 'Creating Account...');
 
   try {
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, email, password })
+      body: JSON.stringify({ name, username, email, password })
     });
     
     const data = await response.json();
@@ -2057,6 +2265,9 @@ async function handleRegister(e) {
     }
   } catch (err) {
     console.error('Registration error:', err);
+  } finally {
+    setButtonLoading(submitBtn, false, '<span>Create Account</span> <i data-lucide="user-plus"></i>');
+    lucide.createIcons();
   }
 }
 
@@ -2073,55 +2284,720 @@ async function handleLogout() {
 }
 
 // ==========================================
-// Profile Handlers
+// Google / Gmail Authentication
 // ==========================================
-function populateProfileForm() {
-  if (state.currentUser) {
-    document.getElementById('profile-username').value = state.currentUser.username || '';
-    document.getElementById('profile-email').value = state.currentUser.email || '';
-    document.getElementById('profile-password').value = '';
+function openGoogleAuthModal() {
+  const modal = document.getElementById('google-auth-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    lucide.createIcons();
   }
 }
 
-async function handleUpdateProfile(e) {
-  e.preventDefault();
-  const username = document.getElementById('profile-username').value;
-  const email = document.getElementById('profile-email').value;
-  const password = document.getElementById('profile-password').value;
+function closeGoogleAuthModal() {
+  const modal = document.getElementById('google-auth-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function handleGoogleAccountPick(name, email) {
+  closeGoogleAuthModal();
+  const sw = getSwalTheme();
+  Swal.fire({
+    title: 'Connecting to Google...',
+    text: `Authorizing account ${email}`,
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+    background: sw.background,
+    color: sw.color
+  });
 
   try {
-    const payload = { username, email };
-    if (password) {
-      payload.password = password;
-    }
-
-    const response = await fetch('/api/auth/profile', {
-      method: 'PUT',
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        email,
+        name,
+        google_id: `google_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        avatar: name.charAt(0).toUpperCase()
+      })
     });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      state.currentUser = data.user;
-      document.getElementById('username-display').textContent = data.user.username;
-      document.getElementById('user-initials').textContent = data.user.username.charAt(0).toUpperCase();
-      
+    const data = await res.json();
+    Swal.close();
+
+    if (res.ok) {
       getToast().fire({ icon: 'success', title: data.message });
-      document.getElementById('profile-password').value = '';
+      handleLoginSuccess(data.user);
     } else {
-      const sw = getSwalTheme();
       Swal.fire({
         icon: 'error',
-        title: 'Update Failed',
-        text: data.error || 'Could not update profile.',
+        title: 'Google Sign In Failed',
+        text: data.error || 'Authentication failed',
         background: sw.background,
         color: sw.color,
         confirmButtonColor: sw.confirmButtonColor
       });
     }
   } catch (err) {
-    console.error('Profile update error:', err);
+    console.error('Google auth fetch failed:', err);
+    Swal.fire({ icon: 'error', title: 'Connection Error', text: err.message });
+  }
+}
+
+function handleCustomGoogleSignIn(e) {
+  e.preventDefault();
+  const email = document.getElementById('custom-google-email').value.trim();
+  if (!email) return;
+  const derivedName = email.split('@')[0].replace(/[._-]/g, ' ');
+  const capitalized = derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
+  handleGoogleAccountPick(capitalized, email);
+}
+
+// ==========================================
+// Account Recovery & OTP Verification
+// ==========================================
+function openForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  if (modal) {
+    const emailInput = document.getElementById('fp-email');
+    if (emailInput) emailInput.value = '';
+    fpGoToStep(1);
+    modal.classList.remove('hidden');
+    lucide.createIcons();
+  }
+}
+
+function closeForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  if (modal) modal.classList.add('hidden');
+  if (state.otpState.timerInterval) {
+    clearInterval(state.otpState.timerInterval);
+    state.otpState.timerInterval = null;
+  }
+}
+
+function fpGoToStep(step) {
+  state.otpState.targetStep = step;
+  for (let i = 1; i <= 4; i++) {
+    const pane = document.getElementById(`fp-step-${i}`);
+    if (pane) {
+      if (i === step) pane.classList.remove('hidden');
+      else pane.classList.add('hidden');
+    }
+  }
+  const subtitle = document.getElementById('fp-subtitle');
+  if (subtitle) {
+    if (step === 1) subtitle.textContent = 'Verify your registered email address';
+    else if (step === 2) subtitle.textContent = 'Enter the 6-digit verification code';
+    else if (step === 3) subtitle.textContent = 'Set your new secure password';
+    else if (step === 4) subtitle.textContent = 'Password reset complete';
+  }
+  lucide.createIcons();
+}
+
+function setupOtpInputs() {
+  for (let i = 1; i <= 6; i++) {
+    const input = document.getElementById(`otp-${i}`);
+    if (!input) continue;
+
+    input.addEventListener('input', (e) => {
+      const val = e.target.value;
+      if (val.length === 1 && i < 6) {
+        const next = document.getElementById(`otp-${i + 1}`);
+        if (next) next.focus();
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !e.target.value && i > 1) {
+        const prev = document.getElementById(`otp-${i - 1}`);
+        if (prev) {
+          prev.focus();
+          prev.value = '';
+        }
+      }
+    });
+
+    input.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
+      if (/^\d{6}$/.test(pasted)) {
+        for (let j = 1; j <= 6; j++) {
+          const field = document.getElementById(`otp-${j}`);
+          if (field) field.value = pasted.charAt(j - 1);
+        }
+        const last = document.getElementById('otp-6');
+        if (last) last.focus();
+      }
+    });
+  }
+}
+
+function startOtpCountdown() {
+  if (state.otpState.timerInterval) {
+    clearInterval(state.otpState.timerInterval);
+  }
+  state.otpState.remainingSeconds = 60;
+  const countEl = document.getElementById('otp-timer-count');
+  const timerText = document.getElementById('otp-timer-text');
+  const resendBtn = document.getElementById('btn-resend-otp');
+  
+  if (timerText) timerText.classList.remove('hidden');
+  if (resendBtn) resendBtn.classList.add('hidden');
+
+  state.otpState.timerInterval = setInterval(() => {
+    state.otpState.remainingSeconds--;
+    if (countEl) countEl.textContent = state.otpState.remainingSeconds;
+    
+    if (state.otpState.remainingSeconds <= 0) {
+      clearInterval(state.otpState.timerInterval);
+      state.otpState.timerInterval = null;
+      if (timerText) timerText.classList.add('hidden');
+      if (resendBtn) resendBtn.classList.remove('hidden');
+    }
+  }, 1000);
+}
+
+async function handleSendOtp(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-fp-send-otp');
+  const emailInput = document.getElementById('fp-email');
+  const email = emailInput.value.trim().toLowerCase();
+
+  setButtonLoading(btn, true, 'Sending Code...');
+
+  try {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      state.otpState.email = email;
+      document.getElementById('fp-target-email').textContent = email;
+      
+      // If dev OTP provided for testing preview
+      const banner = document.getElementById('fp-dev-otp-banner');
+      const codePreview = document.getElementById('fp-dev-otp-code');
+      if (data.devOtp && banner && codePreview) {
+        codePreview.textContent = data.devOtp;
+        banner.classList.remove('hidden');
+      } else if (banner) {
+        banner.classList.add('hidden');
+      }
+
+      startOtpCountdown();
+      fpGoToStep(2);
+      const firstDigit = document.getElementById('otp-1');
+      if (firstDigit) {
+        firstDigit.focus();
+        firstDigit.value = '';
+      }
+      getToast().fire({ icon: 'success', title: data.message });
+    } else {
+      const sw = getSwalTheme();
+      Swal.fire({
+        icon: 'error',
+        title: 'Account Not Found',
+        text: data.error || 'Could not dispatch OTP code.',
+        background: sw.background,
+        color: sw.color,
+        confirmButtonColor: sw.confirmButtonColor
+      });
+    }
+  } catch (err) {
+    console.error('Send OTP error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<span>Send OTP Code</span> <i data-lucide="arrow-right"></i>');
+    lucide.createIcons();
+  }
+}
+
+async function handleResendOtp() {
+  if (!state.otpState.email) return;
+  const resendBtn = document.getElementById('btn-resend-otp');
+  if (resendBtn) resendBtn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: state.otpState.email })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (data.devOtp) {
+        const codePreview = document.getElementById('fp-dev-otp-code');
+        if (codePreview) codePreview.textContent = data.devOtp;
+      }
+      startOtpCountdown();
+      getToast().fire({ icon: 'success', title: 'New OTP code dispatched!' });
+    }
+  } catch (err) {
+    console.error('Resend error:', err);
+  } finally {
+    if (resendBtn) resendBtn.textContent = 'Resend Code';
+  }
+}
+
+async function handleVerifyOtp(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-fp-verify-otp');
+  let otp = '';
+  for (let i = 1; i <= 6; i++) {
+    const val = document.getElementById(`otp-${i}`).value;
+    otp += val;
+  }
+
+  if (otp.length !== 6) {
+    getToast().fire({ icon: 'warning', title: 'Please enter all 6 digits' });
+    return;
+  }
+
+  setButtonLoading(btn, true, 'Verifying...');
+
+  try {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: state.otpState.email, otp })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      state.otpState.verifiedOtp = otp;
+      fpGoToStep(3);
+      getToast().fire({ icon: 'success', title: 'OTP Code Verified!' });
+    } else {
+      const sw = getSwalTheme();
+      Swal.fire({
+        icon: 'error',
+        title: 'Verification Failed',
+        text: data.error || 'Invalid or expired OTP code.',
+        background: sw.background,
+        color: sw.color,
+        confirmButtonColor: sw.confirmButtonColor
+      });
+    }
+  } catch (err) {
+    console.error('Verify OTP error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<span>Verify OTP</span> <i data-lucide="check-circle-2"></i>');
+    lucide.createIcons();
+  }
+}
+
+async function handleResetPassword(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-fp-reset-pwd');
+  const newPassword = document.getElementById('fp-new-password').value;
+  const confirmPassword = document.getElementById('fp-confirm-password').value;
+
+  if (newPassword !== confirmPassword) {
+    getToast().fire({ icon: 'error', title: 'Passwords do not match' });
+    return;
+  }
+
+  setButtonLoading(btn, true, 'Updating Password...');
+
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: state.otpState.email,
+        otp: state.otpState.verifiedOtp,
+        newPassword
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      fpGoToStep(4);
+    } else {
+      const sw = getSwalTheme();
+      Swal.fire({
+        icon: 'error',
+        title: 'Reset Failed',
+        text: data.error || 'Could not reset password.',
+        background: sw.background,
+        color: sw.color,
+        confirmButtonColor: sw.confirmButtonColor
+      });
+    }
+  } catch (err) {
+    console.error('Reset password error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<span>Reset & Sign In</span> <i data-lucide="check"></i>');
+    lucide.createIcons();
+  }
+}
+
+function finishForgotPassword() {
+  closeForgotPasswordModal();
+  switchAuthTab('login');
+}
+
+function checkPasswordStrength(val, targetId) {
+  const bar = document.getElementById(targetId);
+  if (!bar) return;
+  if (!val) {
+    bar.className = 'password-strength-bar';
+    return;
+  }
+  let strength = 0;
+  if (val.length >= 6) strength++;
+  if (/[A-Z]/.test(val) && /[0-9]/.test(val)) strength++;
+  if (/[^A-Za-z0-9]/.test(val) && val.length >= 8) strength++;
+
+  if (strength <= 1) {
+    bar.className = 'password-strength-bar weak';
+  } else if (strength === 2) {
+    bar.className = 'password-strength-bar medium';
+  } else {
+    bar.className = 'password-strength-bar strong';
+  }
+}
+
+// ==========================================
+// Modern App Profile Dashboard Handlers
+// ==========================================
+function switchProfileTab(tab) {
+  document.querySelectorAll('.profile-tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.profile-tab-content').forEach(content => content.classList.add('hidden'));
+
+  const activeBtn = document.getElementById(`ptab-${tab}`);
+  const activePane = document.getElementById(`profile-pane-${tab}`);
+  if (activeBtn) activeBtn.classList.add('active');
+  if (activePane) activePane.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function populateProfileDashboard(user) {
+  if (!user) return;
+
+  const displayName = user.name || user.username;
+  const initials = displayName.substring(0, 2).toUpperCase();
+
+  // Hero Card
+  document.getElementById('profile-hero-name').textContent = displayName;
+  document.getElementById('profile-hero-handle').textContent = `@${user.username}`;
+  document.getElementById('profile-hero-email').textContent = user.email;
+  document.getElementById('profile-avatar-initials').textContent = initials;
+  
+  const authBadge = document.getElementById('profile-auth-badge');
+  if (authBadge) {
+    authBadge.textContent = user.auth_provider === 'google' ? 'Google Account' : 'Aura Secure';
+  }
+
+  const joinedEl = document.getElementById('profile-hero-joined');
+  if (joinedEl && user.created_at) {
+    joinedEl.textContent = new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+
+  // Quick Stats Strip
+  document.getElementById('profile-stat-tx-count').textContent = state.transactions.length;
+  document.getElementById('profile-stat-budget-count').textContent = state.budgets.length;
+  document.getElementById('profile-stat-currency').textContent = `${getCurrencySymbol()} ${user.currency || 'INR'}`;
+
+  // Tab 1: Info Form
+  const nameInput = document.getElementById('profile-name');
+  if (nameInput) nameInput.value = user.name || '';
+  const usernameInput = document.getElementById('profile-username');
+  if (usernameInput) usernameInput.value = user.username || '';
+  const emailInput = document.getElementById('profile-email');
+  if (emailInput) emailInput.value = user.email || '';
+  const phoneInput = document.getElementById('profile-phone');
+  if (phoneInput) phoneInput.value = user.phone || '';
+  const bioInput = document.getElementById('profile-bio');
+  if (bioInput) bioInput.value = user.bio || '';
+
+  // Tab 2: Preferences Form
+  const currSelect = document.getElementById('profile-currency');
+  if (currSelect) currSelect.value = user.currency || 'INR';
+  const themeSelect = document.getElementById('profile-theme-select');
+  if (themeSelect) themeSelect.value = state.theme;
+
+  lucide.createIcons();
+}
+
+async function handleUpdateProfileInfo(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-save-profile-info');
+  const name = document.getElementById('profile-name').value;
+  const username = document.getElementById('profile-username').value;
+  const email = document.getElementById('profile-email').value;
+  const phone = document.getElementById('profile-phone').value;
+  const bio = document.getElementById('profile-bio').value;
+
+  setButtonLoading(btn, true, 'Saving...');
+
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, username, email, phone, bio })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      state.user = data.user;
+      populateProfileDashboard(data.user);
+      document.getElementById('username-display').textContent = data.user.name || data.user.username;
+      getToast().fire({ icon: 'success', title: 'Profile updated successfully!' });
+    } else {
+      const sw = getSwalTheme();
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: data.error || 'Could not update profile',
+        background: sw.background,
+        color: sw.color,
+        confirmButtonColor: sw.confirmButtonColor
+      });
+    }
+  } catch (err) {
+    console.error('Update profile error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<i data-lucide="check"></i> <span>Save Changes</span>');
+    lucide.createIcons();
+  }
+}
+
+function previewCurrencyChange(code) {
+  state.currency = code;
+  state.currencySymbol = getCurrencySymbol();
+  document.getElementById('profile-stat-currency').textContent = `${getCurrencySymbol()} ${code}`;
+  document.querySelectorAll('.currency-prefix').forEach(el => el.textContent = getCurrencySymbol());
+  const modalAmtLabel = document.querySelector('label[for="modal-tx-amount"]');
+  if (modalAmtLabel) modalAmtLabel.textContent = `Amount (${getCurrencySymbol()})`;
+}
+
+async function handleUpdatePreferences(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-save-profile-prefs');
+  const currency = document.getElementById('profile-currency').value;
+  
+  setButtonLoading(btn, true, 'Saving...');
+
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currency,
+        username: state.user.username,
+        email: state.user.email
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      state.user = data.user;
+      state.currency = currency;
+      updateUI();
+      getToast().fire({ icon: 'success', title: `Preferences saved! Currency set to ${currency}.` });
+    }
+  } catch (err) {
+    console.error('Save preferences error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<i data-lucide="check"></i> <span>Save Preferences</span>');
+    lucide.createIcons();
+  }
+}
+
+function applyThemePreference(theme) {
+  if (theme === 'dark') {
+    document.body.className = 'dark-theme';
+    state.theme = 'dark';
+    localStorage.setItem('theme', 'dark');
+  } else {
+    document.body.className = 'light-theme';
+    state.theme = 'light';
+    localStorage.setItem('theme', 'light');
+  }
+  updateThemeIcons();
+}
+
+async function handleUpdatePassword(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-save-profile-pwd');
+  const newPassword = document.getElementById('profile-new-password').value;
+  const confirmPassword = document.getElementById('profile-confirm-password').value;
+
+  if (newPassword !== confirmPassword) {
+    getToast().fire({ icon: 'error', title: 'Passwords do not match' });
+    return;
+  }
+
+  setButtonLoading(btn, true, 'Updating...');
+
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: newPassword,
+        username: state.user.username,
+        email: state.user.email
+      })
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('profile-new-password').value = '';
+      document.getElementById('profile-confirm-password').value = '';
+      getToast().fire({ icon: 'success', title: 'Password updated successfully!' });
+    } else {
+      const sw = getSwalTheme();
+      Swal.fire({
+        icon: 'error',
+        title: 'Password Update Failed',
+        text: data.error || 'Server error',
+        background: sw.background,
+        color: sw.color,
+        confirmButtonColor: sw.confirmButtonColor
+      });
+    }
+  } catch (err) {
+    console.error('Password change error:', err);
+  } finally {
+    setButtonLoading(btn, false, '<i data-lucide="key"></i> <span>Update Password</span>');
+    lucide.createIcons();
+  }
+}
+
+// Data Export & Backup Handlers
+async function handleExportData() {
+  try {
+    const res = await fetch('/api/user/data/export');
+    const data = await res.json();
+    if (res.ok) {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Aura_Finance_Backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      getToast().fire({ icon: 'success', title: 'Backup downloaded successfully!' });
+    }
+  } catch (err) {
+    console.error('Data export error:', err);
+  }
+}
+
+async function handleFileSelected(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    try {
+      const parsed = JSON.parse(event.target.result);
+      const res = await fetch('/api/user/data/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactions: parsed.transactions || [],
+          budgets: parsed.budgets || []
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        getToast().fire({ icon: 'success', title: data.message });
+        await fetchData();
+      } else {
+        const sw = getSwalTheme();
+        Swal.fire({ icon: 'error', title: 'Import Failed', text: data.error, background: sw.background, color: sw.color });
+      }
+    } catch (err) {
+      const sw = getSwalTheme();
+      Swal.fire({ icon: 'error', title: 'Invalid JSON File', text: err.message, background: sw.background, color: sw.color });
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function handleClearAllTransactions() {
+  const sw = getSwalTheme();
+  const confirmResult = await Swal.fire({
+    title: 'Clear All Personal Transactions?',
+    text: 'This will irreversibly delete all transactions in your ledger. Your budgets and profile will remain intact.',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonColor: sw.cancelButtonColor,
+    confirmButtonText: 'Yes, clear all',
+    background: sw.background,
+    color: sw.color
+  });
+
+  if (confirmResult.isConfirmed) {
+    try {
+      const res = await fetch('/api/user/data/clear', { method: 'DELETE' });
+      const data = await res.json();
+      if (res.ok) {
+        getToast().fire({ icon: 'success', title: data.message });
+        await fetchData();
+      }
+    } catch (err) {
+      console.error('Clear transactions error:', err);
+    }
+  }
+}
+
+// Avatar Picker Modal
+const AVATAR_PRESETS = [
+  '💎', '🚀', '🏦', '🪙', '📈', '🦊', '⚡', '👑', '🦁', '🎯', '🍀', '🛡️'
+];
+
+function openAvatarModal() {
+  const modal = document.getElementById('avatar-modal');
+  const grid = document.getElementById('avatar-grid-list');
+  if (!modal || !grid) return;
+
+  grid.innerHTML = '';
+  AVATAR_PRESETS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-preset-btn';
+    btn.textContent = emoji;
+    btn.onclick = () => selectAvatarPreset(emoji);
+    grid.appendChild(btn);
+  });
+
+  modal.classList.remove('hidden');
+  lucide.createIcons();
+}
+
+function closeAvatarModal() {
+  const modal = document.getElementById('avatar-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function selectAvatarPreset(preset) {
+  closeAvatarModal();
+  document.getElementById('profile-avatar-initials').textContent = preset;
+  document.getElementById('user-initials').textContent = preset;
+  document.getElementById('mobile-user-initials').textContent = preset;
+
+  try {
+    await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        avatar: preset,
+        username: state.user.username,
+        email: state.user.email
+      })
+    });
+    getToast().fire({ icon: 'success', title: 'Avatar updated!' });
+  } catch (err) {
+    console.error('Avatar update error:', err);
   }
 }

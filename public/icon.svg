@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="auraGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="auraGlow" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#93c5fd" stop-opacity="0.2"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#1d4ed8" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- App Rounded Squircle -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#auraGrad)" filter="url(#shadow)"/>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#auraGlow)"/>
+
+  <!-- Stylized Wallet & Diamond Chart Elements -->
+  <g transform="translate(96, 100)" stroke="#ffffff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Wallet Card Body -->
+    <rect x="16" y="70" width="288" height="190" rx="32" fill="rgba(255, 255, 255, 0.12)" stroke="#ffffff" stroke-width="20"/>
+    
+    <!-- Flap Path -->
+    <path d="M 16 110 Q 160 40 304 110" stroke="#ffffff" stroke-width="18" fill="none"/>
+    
+    <!-- Card clasp -->
+    <rect x="220" y="135" width="84" height="60" rx="18" fill="#ffffff"/>
+    <circle cx="250" cy="165" r="10" fill="#2563eb"/>
+    
+    <!-- Growth Line Graph Above -->
+    <path d="M 40 30 L 110 -20 L 190 20 L 280 -50" stroke="#34d399" stroke-width="22" stroke-linecap="round"/>
+    <circle cx="280" cy="-50" r="14" fill="#34d399" stroke="#ffffff" stroke-width="6"/>
+  </g>
+</svg>
