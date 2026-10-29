@@ -238,12 +238,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Handle outside clicks to close dropdowns
+  // Handle outside clicks to close dropdowns and modal backdrops
   window.addEventListener('click', (e) => {
     const dropdown = document.getElementById('mobile-dropdown-menu');
     const avatar = document.querySelector('.mobile-user-avatar');
     if (dropdown && avatar && !avatar.contains(e.target)) {
       dropdown.classList.add('hidden');
+    }
+    
+    if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+      if (e.target.id === 'transaction-modal') closeTransactionModal();
+      else if (e.target.id === 'forgot-password-modal') closeForgotPasswordModal();
+      else if (e.target.id === 'google-auth-modal') closeGoogleAuthModal();
+      else if (e.target.id === 'avatar-modal') closeAvatarModal();
+      else e.target.classList.add('hidden');
     }
   });
 });
@@ -328,11 +336,11 @@ function handleLoginSuccess(user) {
   document.getElementById('auth-container').classList.add('hidden');
   document.getElementById('app-container').classList.remove('hidden');
   
-  // Show header and mobile components
-  if (window.innerWidth <= 900) {
-    document.getElementById('mobile-header').classList.remove('hidden');
-    document.getElementById('mobile-nav').classList.remove('hidden');
-  }
+  // Show header and mobile components (visibility dynamically driven by responsive CSS)
+  const mobHeader = document.getElementById('mobile-header');
+  const mobNav = document.getElementById('mobile-nav');
+  if (mobHeader) mobHeader.classList.remove('hidden');
+  if (mobNav) mobNav.classList.remove('hidden');
   const fab = document.getElementById('mobile-fab');
   if (fab) fab.classList.remove('hidden');
 
@@ -572,6 +580,7 @@ function getActiveMonth() {
 // ==========================================
 function switchView(viewName) {
   state.activeView = viewName;
+  window.scrollTo({ top: 0, behavior: 'instant' });
   
   // Update Navigation active styles (sidebar + mobile footer tab)
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
