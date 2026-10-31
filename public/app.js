@@ -157,28 +157,102 @@ const COLORS = {
 };
 
 // ==========================================
+// ==========================================
 // Dynamic SweetAlert & Toast Helper
 // ==========================================
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function isImageAvatar(avatar) {
+  if (!avatar) return false;
+  return typeof avatar === 'string' && (
+    avatar.startsWith('data:image/') ||
+    avatar.startsWith('http://') ||
+    avatar.startsWith('https://') ||
+    avatar.startsWith('/uploads/') ||
+    avatar.startsWith('blob:')
+  );
+}
+
+function renderAllAvatars(user) {
+  if (!user) return;
+  const displayName = user.name || user.username || 'User';
+  const initials = displayName.substring(0, 2).toUpperCase();
+  const avatarVal = user.avatar;
+
+  // Sidebar User Avatar
+  const sideAvatar = document.getElementById('sidebar-user-avatar');
+  if (sideAvatar) {
+    if (isImageAvatar(avatarVal)) {
+      sideAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+    } else {
+      sideAvatar.innerHTML = `<span id="user-initials">${escapeHtml(avatarVal || initials)}</span>`;
+    }
+  }
+
+  // Mobile Header User Avatar
+  const mobAvatar = document.querySelector('.mobile-user-avatar');
+  if (mobAvatar) {
+    const mobDropdown = document.getElementById('mobile-dropdown-menu');
+    if (isImageAvatar(avatarVal)) {
+      mobAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+    } else {
+      mobAvatar.innerHTML = `<span id="mobile-user-initials">${escapeHtml(avatarVal || initials)}</span>`;
+    }
+    if (mobDropdown) {
+      mobAvatar.appendChild(mobDropdown);
+    }
+  }
+
+  // Profile Hero Avatar
+  const heroAvatar = document.getElementById('profile-avatar-display');
+  if (heroAvatar) {
+    if (isImageAvatar(avatarVal)) {
+      heroAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+    } else {
+      heroAvatar.innerHTML = `<span id="profile-avatar-initials">${escapeHtml(avatarVal || initials)}</span>`;
+    }
+  }
+}
+
 function getSwalTheme() {
   const isDark = document.body.classList.contains('dark-theme');
   return {
     background: isDark ? '#0d1321' : '#ffffff',
     color: isDark ? '#f3f4f6' : '#1f2937',
     confirmButtonColor: isDark ? '#6366f1' : '#2563eb',
-    cancelButtonColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
+    cancelButtonColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+    customClass: {
+      popup: 'aura-swal-popup',
+      title: 'aura-swal-title',
+      confirmButton: 'aura-swal-confirm-btn',
+      cancelButton: 'aura-swal-cancel-btn'
+    }
   };
 }
 
 function getToast() {
-  const st = getSwalTheme();
+  const isDark = document.body.classList.contains('dark-theme');
   return Swal.mixin({
     toast: true,
-    position: 'top-end',
+    position: 'top',
     showConfirmButton: false,
-    timer: 2500,
-    timerProgressBar: true,
-    background: st.background,
-    color: st.color,
+    timer: 2600,
+    timerProgressBar: false,
+    background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+    color: isDark ? '#f8fafc' : '#0f172a',
+    customClass: {
+      container: 'aura-toast-container',
+      popup: 'aura-toast-pill',
+      title: 'aura-toast-title'
+    },
     didOpen: (toast) => {
       toast.addEventListener('mouseenter', Swal.stopTimer);
       toast.addEventListener('mouseleave', Swal.resumeTimer);
@@ -346,13 +420,13 @@ function handleLoginSuccess(user) {
 
   // Update profile name variables
   const displayName = user.name || user.username;
-  const initials = displayName.substring(0, 2).toUpperCase();
   
   document.getElementById('username-display').textContent = displayName;
-  document.getElementById('user-initials').textContent = initials;
-  document.getElementById('mobile-user-initials').textContent = initials;
   document.getElementById('mobile-dropdown-name').textContent = displayName;
   document.getElementById('header-greeting').textContent = `Welcome back, ${displayName}`;
+
+  // Render avatars (photos or initials) everywhere
+  renderAllAvatars(user);
 
   // Update modal currency label
   document.querySelectorAll('.currency-prefix').forEach(el => {
@@ -747,13 +821,13 @@ function renderDashboardTransactions() {
     const amountPrefix = tx.type === 'income' ? '+' : '-';
     
     const rowHTML = `
-      <tr>
-        <td><span class="tx-category-tag">${tx.category}</span></td>
-        <td style="max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          ${tx.description || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}
+      <tr class="tx-card-row">
+        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
+        <td class="tx-col-desc">
+          ${escapeHtml(tx.description) || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}
         </td>
-        <td style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="text-right ${amountClass}">${amountPrefix}${formatCurrency(tx.amount)}</td>
+        <td class="tx-col-date" style="color: var(--text-muted);">${formatDate(tx.date)}</td>
+        <td class="tx-col-amount text-right ${amountClass}">${amountPrefix}${formatCurrency(tx.amount)}</td>
       </tr>
     `;
     container.insertAdjacentHTML('beforeend', rowHTML);
@@ -914,16 +988,16 @@ function renderTransactionsList() {
     const amountPrefix = tx.type === 'income' ? '+' : '-';
 
     const rowHTML = `
-      <tr>
-        <td>${typeBadge}</td>
-        <td><span class="tx-category-tag">${tx.category}</span></td>
-        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: normal;">
-          ${tx.description || '<span style="color: var(--text-muted-dark); font-style: italic;">No description</span>'}
+      <tr class="tx-card-row">
+        <td class="tx-col-type">${typeBadge}</td>
+        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
+        <td class="tx-col-desc">
+          ${escapeHtml(tx.description) || '<span style="color: var(--text-muted-dark); font-style: italic;">No description</span>'}
         </td>
-        <td style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatCurrency(tx.amount)}</td>
-        <td class="text-center">
-          <div style="display: flex; gap: 8px; justify-content: center;">
+        <td class="tx-col-date" style="color: var(--text-muted);">${formatDate(tx.date)}</td>
+        <td class="tx-col-amount text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatCurrency(tx.amount)}</td>
+        <td class="tx-col-actions text-center">
+          <div class="tx-actions-flex" style="display: flex; gap: 8px; justify-content: center;">
             <button class="btn-icon edit-btn" onclick="openTransactionModal('${tx.type}', '${tx.id}')" title="Edit record">
               <i data-lucide="edit-3"></i>
             </button>
@@ -1457,12 +1531,12 @@ function handleGenerateReport() {
     const amountPrefix = tx.type === 'income' ? '+' : '-';
     
     const row = `
-      <tr>
-        <td>${typeBadge}</td>
-        <td><span class="tx-category-tag">${tx.category}</span></td>
-        <td>${tx.description || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}</td>
-        <td style="color:var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatter.format(tx.amount)}</td>
+      <tr class="tx-card-row">
+        <td class="tx-col-type">${typeBadge}</td>
+        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
+        <td class="tx-col-desc">${escapeHtml(tx.description) || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}</td>
+        <td class="tx-col-date" style="color:var(--text-muted);">${formatDate(tx.date)}</td>
+        <td class="tx-col-amount text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatter.format(tx.amount)}</td>
       </tr>
     `;
     tbody.insertAdjacentHTML('beforeend', row);
@@ -2293,12 +2367,46 @@ async function handleLogout() {
 }
 
 // ==========================================
-// Google / Gmail Authentication
+// Google / Gmail Authentication & Account Chooser
 // ==========================================
+function getSavedGoogleAccounts() {
+  try {
+    const raw = localStorage.getItem('aura_google_accounts');
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveGoogleAccountLocally(acc) {
+  try {
+    let accounts = getSavedGoogleAccounts();
+    accounts = accounts.filter(a => a.email.toLowerCase() !== acc.email.toLowerCase());
+    accounts.unshift(acc);
+    if (accounts.length > 5) accounts = accounts.slice(0, 5);
+    localStorage.setItem('aura_google_accounts', JSON.stringify(accounts));
+  } catch (e) {
+    console.error('Failed to save google account:', e);
+  }
+}
+
+function removeSavedGoogleAccount(e, email) {
+  e.stopPropagation();
+  try {
+    let accounts = getSavedGoogleAccounts();
+    accounts = accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase());
+    localStorage.setItem('aura_google_accounts', JSON.stringify(accounts));
+    renderGoogleAuthContent();
+  } catch (err) {
+    console.error('Failed to remove account:', err);
+  }
+}
+
 function openGoogleAuthModal() {
   const modal = document.getElementById('google-auth-modal');
   if (modal) {
     modal.classList.remove('hidden');
+    renderGoogleAuthContent();
     lucide.createIcons();
   }
 }
@@ -2306,6 +2414,103 @@ function openGoogleAuthModal() {
 function closeGoogleAuthModal() {
   const modal = document.getElementById('google-auth-modal');
   if (modal) modal.classList.add('hidden');
+}
+
+function renderGoogleAuthContent(forceNewAccountView = false) {
+  const container = document.getElementById('google-auth-content');
+  const subtitle = document.getElementById('google-modal-subtitle');
+  if (!container) return;
+
+  const savedAccounts = getSavedGoogleAccounts();
+
+  if (savedAccounts.length > 0 && !forceNewAccountView) {
+    if (subtitle) subtitle.innerHTML = 'Choose an account to continue to <strong>Aura Finance</strong>';
+    
+    let html = `<div class="google-accounts-list">`;
+    savedAccounts.forEach(acc => {
+      const initial = (acc.name || acc.email).charAt(0).toUpperCase();
+      html += `
+        <div class="google-account-item" onclick="handleGoogleAccountPick('${escapeHtml(acc.name || acc.email.split('@')[0])}', '${escapeHtml(acc.email)}')">
+          <div class="google-avatar-circle bg-blue">${escapeHtml(initial)}</div>
+          <div class="google-account-details">
+            <strong>${escapeHtml(acc.name || acc.email.split('@')[0])}</strong>
+            <span>${escapeHtml(acc.email)}</span>
+          </div>
+          <button type="button" class="btn-remove-account" onclick="removeSavedGoogleAccount(event, '${escapeHtml(acc.email)}')" title="Remove from this device">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      `;
+    });
+
+    html += `
+      <button type="button" class="google-account-item google-use-another-btn" onclick="renderGoogleAuthContent(true)">
+        <div class="google-avatar-circle bg-neutral"><i data-lucide="user-plus"></i></div>
+        <div class="google-account-details">
+          <strong>Use another account</strong>
+          <span>Sign in with another Gmail or Google account</span>
+        </div>
+        <i data-lucide="chevron-right" class="arrow-icon"></i>
+      </button>
+    </div>`;
+
+    container.innerHTML = html;
+  } else {
+    if (subtitle) subtitle.innerHTML = 'Enter your Google or Gmail account to continue';
+    
+    container.innerHTML = `
+      <form onsubmit="handleGoogleFormSubmit(event)" class="google-signin-form">
+        <div class="input-group">
+          <label for="google-input-email">Email or phone</label>
+          <div class="input-wrapper">
+            <i data-lucide="mail" class="input-icon"></i>
+            <input type="email" id="google-input-email" placeholder="you@gmail.com" required autocomplete="email" autofocus>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="google-input-name">Your Full Name (Optional)</label>
+          <div class="input-wrapper">
+            <i data-lucide="user" class="input-icon"></i>
+            <input type="text" id="google-input-name" placeholder="e.g. Alex Morgan" autocomplete="name">
+          </div>
+        </div>
+
+        <div class="google-form-actions">
+          ${savedAccounts.length > 0 ? `
+            <button type="button" class="btn btn-secondary" onclick="renderGoogleAuthContent(false)">
+              <i data-lucide="arrow-left"></i>
+              <span>Back</span>
+            </button>
+          ` : ''}
+          <button type="submit" class="btn btn-primary btn-google-submit">
+            <span>Continue with Google</span>
+            <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+      </form>
+    `;
+  }
+
+  lucide.createIcons();
+}
+
+function handleGoogleFormSubmit(e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('google-input-email');
+  const nameInput = document.getElementById('google-input-name');
+  if (!emailInput) return;
+
+  const email = emailInput.value.trim().toLowerCase();
+  if (!email) return;
+
+  let name = nameInput ? nameInput.value.trim() : '';
+  if (!name) {
+    const localPart = email.split('@')[0].replace(/[._-]/g, ' ');
+    name = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+  }
+
+  handleGoogleAccountPick(name, email);
 }
 
 async function handleGoogleAccountPick(name, email) {
@@ -2335,7 +2540,8 @@ async function handleGoogleAccountPick(name, email) {
     Swal.close();
 
     if (res.ok) {
-      getToast().fire({ icon: 'success', title: data.message });
+      saveGoogleAccountLocally({ name: data.user.name || name, email });
+      getToast().fire({ icon: 'success', title: 'Signed in with Google successfully!' });
       handleLoginSuccess(data.user);
     } else {
       Swal.fire({
@@ -2349,17 +2555,8 @@ async function handleGoogleAccountPick(name, email) {
     }
   } catch (err) {
     console.error('Google auth fetch failed:', err);
-    Swal.fire({ icon: 'error', title: 'Connection Error', text: err.message });
+    Swal.fire({ icon: 'error', title: 'Connection Error', text: err.message, background: sw.background, color: sw.color });
   }
-}
-
-function handleCustomGoogleSignIn(e) {
-  e.preventDefault();
-  const email = document.getElementById('custom-google-email').value.trim();
-  if (!email) return;
-  const derivedName = email.split('@')[0].replace(/[._-]/g, ' ');
-  const capitalized = derivedName.charAt(0).toUpperCase() + derivedName.slice(1);
-  handleGoogleAccountPick(capitalized, email);
 }
 
 // ==========================================
@@ -2694,7 +2891,7 @@ function populateProfileDashboard(user) {
   document.getElementById('profile-hero-name').textContent = displayName;
   document.getElementById('profile-hero-handle').textContent = `@${user.username}`;
   document.getElementById('profile-hero-email').textContent = user.email;
-  document.getElementById('profile-avatar-initials').textContent = initials;
+  renderAllAvatars(user);
   
   const authBadge = document.getElementById('profile-auth-badge');
   if (authBadge) {
@@ -2960,7 +3157,7 @@ async function handleClearAllTransactions() {
   }
 }
 
-// Avatar Picker Modal
+// Avatar Picker & Personal Photo Management
 const AVATAR_PRESETS = [
   '💎', '🚀', '🏦', '🪙', '📈', '🦊', '⚡', '👑', '🦁', '🎯', '🍀', '🛡️'
 ];
@@ -2968,17 +3165,32 @@ const AVATAR_PRESETS = [
 function openAvatarModal() {
   const modal = document.getElementById('avatar-modal');
   const grid = document.getElementById('avatar-grid-list');
-  if (!modal || !grid) return;
+  const previewArea = document.getElementById('avatar-custom-preview-area');
+  const previewImg = document.getElementById('avatar-preview-img');
+  if (!modal) return;
 
-  grid.innerHTML = '';
-  AVATAR_PRESETS.forEach(emoji => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'avatar-preset-btn';
-    btn.textContent = emoji;
-    btn.onclick = () => selectAvatarPreset(emoji);
-    grid.appendChild(btn);
-  });
+  // Show custom preview if user currently has an image avatar
+  if (state.user && isImageAvatar(state.user.avatar)) {
+    if (previewArea && previewImg) {
+      previewImg.src = state.user.avatar;
+      previewArea.classList.remove('hidden');
+    }
+  } else {
+    if (previewArea) previewArea.classList.add('hidden');
+  }
+
+  // Populate emoji presets
+  if (grid) {
+    grid.innerHTML = '';
+    AVATAR_PRESETS.forEach(emoji => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `avatar-preset-btn ${state.user && state.user.avatar === emoji ? 'selected' : ''}`;
+      btn.textContent = emoji;
+      btn.onclick = () => selectAvatarPreset(emoji);
+      grid.appendChild(btn);
+    });
+  }
 
   modal.classList.remove('hidden');
   lucide.createIcons();
@@ -2989,11 +3201,141 @@ function closeAvatarModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+async function handleAvatarFileChosen(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    const sw = getSwalTheme();
+    Swal.fire({
+      icon: 'warning',
+      title: 'Invalid Image',
+      text: 'Please select an image file (JPEG, PNG, WEBP, etc.)',
+      background: sw.background,
+      color: sw.color
+    });
+    return;
+  }
+
+  const sw = getSwalTheme();
+  Swal.fire({
+    title: 'Processing Photo...',
+    text: 'Optimizing and setting your profile photo',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+    background: sw.background,
+    color: sw.color
+  });
+
+  try {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const img = new Image();
+      img.onload = async () => {
+        // High quality square center-crop & compression via offscreen canvas
+        const canvas = document.createElement('canvas');
+        const maxDim = 400;
+        const width = img.width;
+        const height = img.height;
+        const minDim = Math.min(width, height);
+        const startX = (width - minDim) / 2;
+        const startY = (height - minDim) / 2;
+
+        canvas.width = maxDim;
+        canvas.height = maxDim;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, maxDim, maxDim);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        // Upload to profile API
+        const res = await fetch('/api/auth/profile', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            avatar: compressedDataUrl,
+            username: state.user.username,
+            email: state.user.email
+          })
+        });
+
+        const data = await res.json();
+        Swal.close();
+
+        if (res.ok) {
+          state.user.avatar = compressedDataUrl;
+          renderAllAvatars(state.user);
+          closeAvatarModal();
+          getToast().fire({ icon: 'success', title: 'Profile photo updated!' });
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Upload Failed',
+            text: data.error || 'Could not update profile photo',
+            background: sw.background,
+            color: sw.color
+          });
+        }
+      };
+      img.onerror = () => {
+        Swal.close();
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to read image file.' });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  } catch (err) {
+    Swal.close();
+    console.error('Avatar file process failed:', err);
+    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+  } finally {
+    event.target.value = '';
+  }
+}
+
+async function removePersonalPhoto() {
+  if (!state.user) return;
+  const sw = getSwalTheme();
+  const confirmResult = await Swal.fire({
+    title: 'Remove Profile Photo?',
+    text: 'Your profile avatar will revert back to your initials.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Yes, remove',
+    cancelButtonText: 'Cancel',
+    confirmButtonColor: '#ef4444',
+    background: sw.background,
+    color: sw.color
+  });
+
+  if (!confirmResult.isConfirmed) return;
+
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        avatar: '',
+        username: state.user.username,
+        email: state.user.email
+      })
+    });
+    if (res.ok) {
+      state.user.avatar = '';
+      renderAllAvatars(state.user);
+      closeAvatarModal();
+      getToast().fire({ icon: 'success', title: 'Photo removed. Initials restored.' });
+    }
+  } catch (err) {
+    console.error('Failed to remove photo:', err);
+  }
+}
+
 async function selectAvatarPreset(preset) {
   closeAvatarModal();
-  document.getElementById('profile-avatar-initials').textContent = preset;
-  document.getElementById('user-initials').textContent = preset;
-  document.getElementById('mobile-user-initials').textContent = preset;
+  state.user.avatar = preset;
+  renderAllAvatars(state.user);
 
   try {
     await fetch('/api/auth/profile', {
@@ -3005,7 +3347,7 @@ async function selectAvatarPreset(preset) {
         email: state.user.email
       })
     });
-    getToast().fire({ icon: 'success', title: 'Avatar updated!' });
+    getToast().fire({ icon: 'success', title: 'Avatar icon updated!' });
   } catch (err) {
     console.error('Avatar update error:', err);
   }

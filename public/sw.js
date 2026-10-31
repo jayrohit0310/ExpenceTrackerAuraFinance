@@ -1,5 +1,5 @@
 // Aura Finance Service Worker for PWA
-const CACHE_NAME = 'aura-finance-v2';
+const CACHE_NAME = 'aura-finance-v3';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

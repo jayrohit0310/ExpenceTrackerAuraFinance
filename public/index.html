@@ -49,28 +49,13 @@
       <span class="logo-text">Aura Finance</span>
     </div>
     <div class="mobile-header-actions">
-      <!-- Network Connectivity Indicator -->
-      <div id="network-status" class="network-badge online" title="Status: Online">
-        <span class="network-dot"></span>
-      </div>
-
-      <!-- Quick Refresh Button -->
-      <button onclick="handleManualRefresh()" class="btn-refresh-icon" id="mobile-btn-refresh" title="Refresh all data">
-        <i data-lucide="refresh-cw"></i>
-      </button>
-
-      <!-- Install App Pill Button -->
+      <!-- Install App Pill Button (When available) -->
       <button id="mobile-btn-install" class="btn-install-app-pill hidden" onclick="triggerPwaInstall()" title="Install App">
         <i data-lucide="download"></i>
         <span>Install</span>
       </button>
 
-      <!-- Theme Switcher -->
-      <button onclick="toggleTheme()" class="btn-theme-toggle-icon" title="Toggle theme">
-        <i data-lucide="sun" id="theme-icon-mobile"></i>
-      </button>
-      
-      <!-- User profile initials dropdown -->
+      <!-- User profile initials/avatar dropdown -->
       <div class="mobile-user-avatar" onclick="toggleMobileMenu()">
         <span id="mobile-user-initials">D</span>
         <div id="mobile-dropdown-menu" class="mobile-dropdown hidden">
@@ -81,6 +66,10 @@
           <button onclick="switchView('profile'); toggleMobileMenu();" class="dropdown-profile-btn">
             <i data-lucide="user"></i>
             <span>Profile Settings</span>
+          </button>
+          <button onclick="toggleTheme(); toggleMobileMenu();" class="dropdown-profile-btn">
+            <i data-lucide="moon" id="dropdown-theme-icon"></i>
+            <span id="dropdown-theme-text">Dark / Light Mode</span>
           </button>
           <button onclick="handleLogout()" class="dropdown-logout-btn">
             <i data-lucide="log-out"></i>
@@ -897,7 +886,11 @@
                   </div>
                 </div>
 
-                <div class="form-actions-end">
+                <div class="form-actions-end" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                  <button type="button" class="btn btn-secondary" onclick="openAvatarModal()">
+                    <i data-lucide="camera"></i>
+                    <span>Change Profile Photo / Avatar</span>
+                  </button>
                   <button type="submit" class="btn btn-primary" id="btn-save-profile-info">
                     <i data-lucide="check"></i>
                     <span>Save Changes</span>
@@ -1294,7 +1287,7 @@
   </div>
 
   <!-- ==========================================
-       MODAL 3: GOOGLE / GMAIL ACCOUNT SELECTOR
+       MODAL 3: GOOGLE / GMAIL ACCOUNT SIGN IN
        ========================================== -->
   <div id="google-auth-modal" class="modal-overlay hidden">
     <div class="modal-card modal-google-card">
@@ -1306,72 +1299,85 @@
           <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
         </svg>
         <h3>Sign in with Google</h3>
-        <p>Choose an account to continue to <strong>Aura Finance</strong></p>
+        <p id="google-modal-subtitle">Choose an account to continue to <strong>Aura Finance</strong></p>
         <button class="btn-close" onclick="closeGoogleAuthModal()">
           <i data-lucide="x"></i>
         </button>
       </div>
 
-      <div class="google-accounts-list">
-        <!-- 1-Click Demo / Personal Account -->
-        <button type="button" class="google-account-item" onclick="handleGoogleAccountPick('Jay Rohit', 'jayrohit0310@gmail.com')">
-          <div class="google-avatar-circle bg-blue">J</div>
-          <div class="google-account-details">
-            <strong>Jay Rohit</strong>
-            <span>jayrohit0310@gmail.com</span>
-          </div>
-          <i data-lucide="chevron-right" class="arrow-icon"></i>
-        </button>
-
-        <!-- Demo Account 2 -->
-        <button type="button" class="google-account-item" onclick="handleGoogleAccountPick('Alex Finance', 'alex.finance@gmail.com')">
-          <div class="google-avatar-circle bg-green">A</div>
-          <div class="google-account-details">
-            <strong>Alex Finance</strong>
-            <span>alex.finance@gmail.com</span>
-          </div>
-          <i data-lucide="chevron-right" class="arrow-icon"></i>
-        </button>
-
-        <!-- Custom Gmail Input Toggle -->
-        <div class="google-custom-entry">
-          <div class="auth-divider"><span>or enter any Gmail address</span></div>
-          <form onsubmit="handleCustomGoogleSignIn(event)" class="google-custom-form">
-            <div class="input-wrapper">
-              <i data-lucide="mail" class="input-icon"></i>
-              <input type="email" id="custom-google-email" placeholder="you@gmail.com" required>
-            </div>
-            <button type="submit" class="btn btn-google-submit">
-              <span>Continue</span>
-              <i data-lucide="arrow-right"></i>
-            </button>
-          </form>
-        </div>
+      <!-- Dynamically populated: either remembered accounts list or authentic Google email sign-in form -->
+      <div id="google-auth-content" class="google-auth-content">
+        <!-- Rendered by renderGoogleAuthContent() in app.js -->
       </div>
 
       <div class="google-modal-footer">
         <i data-lucide="shield-check"></i>
-        <span>To continue, Google will share your name, email address, and profile picture with Aura Finance.</span>
+        <span>To continue, Google will share your email, name, and profile details with Aura Finance securely.</span>
       </div>
     </div>
   </div>
 
   <!-- ==========================================
-       MODAL 4: AVATAR PICKER
+       MODAL 4: AVATAR / PROFILE PHOTO PICKER
        ========================================== -->
   <div id="avatar-modal" class="modal-overlay hidden">
-    <div class="modal-card">
+    <div class="modal-card modal-avatar-card">
       <div class="modal-header">
-        <h3>Choose Profile Avatar</h3>
+        <div class="modal-title-with-icon">
+          <div class="modal-icon-badge">
+            <i data-lucide="camera"></i>
+          </div>
+          <div>
+            <h3>Profile Photo & Avatar</h3>
+            <p class="subtitle" style="margin:0;">Personalize your profile picture</p>
+          </div>
+        </div>
         <button class="btn-close" onclick="closeAvatarModal()">
           <i data-lucide="x"></i>
         </button>
       </div>
-      <div class="avatar-grid" id="avatar-grid-list">
-        <!-- Generated by JS -->
+
+      <!-- Hidden file inputs for Camera and Gallery -->
+      <input type="file" id="avatar-camera-input" accept="image/*" capture="user" style="display:none;" onchange="handleAvatarFileChosen(event)">
+      <input type="file" id="avatar-gallery-input" accept="image/*" style="display:none;" onchange="handleAvatarFileChosen(event)">
+
+      <!-- Photo Upload Actions -->
+      <div class="avatar-photo-upload-section">
+        <label class="section-label">Upload Personal Photo</label>
+        <div class="avatar-photo-buttons">
+          <button type="button" class="btn btn-primary btn-upload-opt" onclick="document.getElementById('avatar-camera-input').click()">
+            <i data-lucide="camera"></i>
+            <span>Take Photo (Camera)</span>
+          </button>
+          <button type="button" class="btn btn-secondary btn-upload-opt" onclick="document.getElementById('avatar-gallery-input').click()">
+            <i data-lucide="image"></i>
+            <span>Choose from Gallery</span>
+          </button>
+        </div>
+
+        <div id="avatar-custom-preview-area" class="avatar-custom-preview hidden">
+          <div class="avatar-preview-wrapper">
+            <img id="avatar-preview-img" src="" alt="Custom Avatar Preview" class="avatar-preview-img">
+          </div>
+          <button type="button" class="btn-text text-danger" onclick="removePersonalPhoto()">
+            <i data-lucide="trash-2"></i>
+            <span>Remove Photo & Use Initials</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Emoji Presets Section -->
+      <div class="avatar-emoji-section">
+        <div class="auth-divider">
+          <span>or choose an avatar icon</span>
+        </div>
+        <div class="avatar-grid" id="avatar-grid-list">
+          <!-- Generated by JS -->
+        </div>
+      </div>
+
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Cancel</button>
+        <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Close</button>
       </div>
     </div>
   </div>
@@ -1379,7 +1385,7 @@
   <!-- ==========================================
        MOBILE FLOATING ACTION BUTTON (FAB)
        ========================================== -->
-  <button id="mobile-fab" class="mobile-fab" onclick="openTransactionModal('expense')" title="Quick Add Record">
+  <button id="mobile-fab" class="mobile-fab hidden" onclick="openTransactionModal('expense')" title="Quick Add Record">
     <i data-lucide="plus"></i>
   </button>
 
