@@ -1,12 +1,13 @@
 // Aura Finance Service Worker for PWA
-const CACHE_NAME = 'aura-finance-v3';
+const CACHE_NAME = 'aura-finance-v4';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
   '/manifest.json',
-  '/icon.svg',
+  '/favicon.png',
+  '/logo.png',
   '/icon-192.png',
   '/icon-512.png'
 ];
