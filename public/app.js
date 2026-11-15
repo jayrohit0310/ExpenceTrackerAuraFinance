@@ -1,6 +1,7 @@
-// ==========================================
-// Aura Finance - Client Application Core
-// ==========================================
+// ==========================================================================
+// AuraFinance - Modern Client Application Engine
+// Linear / Stripe / Ramp Inspired Fintech Architecture
+// ==========================================================================
 
 // Global SPA State
 const state = {
@@ -16,39 +17,42 @@ const state = {
     budgetsStatus: []
   },
   activeView: 'dashboard',
-  selectedMonth: '', // YYYY-MM format
+  selectedMonth: '', // YYYY-MM
   theme: 'light', // 'light' or 'dark'
+  chartPeriod: 'this', // 'this' or 'last'
+  currentCategoryTab: 'expense',
   isLoadingTransactions: false,
   isRefreshing: false,
   deferredPwaPrompt: null,
+
   otpState: {
     email: '',
     targetStep: 1,
     timerInterval: null,
     remainingSeconds: 60
   },
-  
+
   // Transaction list filtering, sorting, and pagination
   filters: {
     search: '',
     type: 'all',
     category: 'all',
     date: 'all',
-    amount: 'all'
+    amount: 'all',
+    paymentMethod: 'all'
   },
   sort: {
     key: 'date',
-    order: 'desc' // 'asc' or 'desc'
+    order: 'desc'
   },
   pagination: {
     page: 1,
     itemsPerPage: 10
   },
-  
-  // Compiled report details
+
+  // Report details
   report: {
     compiled: false,
-    range: 'thismonth',
     startDate: '',
     endDate: '',
     data: {
@@ -60,15 +64,18 @@ const state = {
       categorySummary: {}
     }
   },
-  
-  // Chart.js references
+
+  // Chart instances
   charts: {
+    dashboardOverview: null,
+    dashboardCategories: null,
     trends: null,
     categories: null,
     utilization: null
   }
 };
 
+// Currency Symbols Dictionary
 const CURRENCY_SYMBOLS = {
   INR: '₹',
   USD: '$',
@@ -80,40 +87,24 @@ const CURRENCY_SYMBOLS = {
   AED: 'AED '
 };
 
-function getCurrencySymbol() {
-  const curr = (state.user && state.user.currency) || state.currency || 'INR';
-  return CURRENCY_SYMBOLS[curr] || '₹';
-}
+// Lucide Icon Mapping for Categories (STRICTLY NO EMOJIS)
+const CATEGORY_ICONS = {
+  'Food & Dining': { icon: 'utensils', color: '#F97316', bg: 'rgba(249, 115, 22, 0.12)' },
+  'Shopping': { icon: 'shopping-bag', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)' },
+  'Entertainment': { icon: 'tv', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)' },
+  'Utilities': { icon: 'zap', color: '#EAB308', bg: 'rgba(234, 179, 8, 0.12)' },
+  'Rent & Housing': { icon: 'home', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.12)' },
+  'Travel': { icon: 'plane', color: '#3B82F6', bg: 'rgba(59, 130, 246, 0.12)' },
+  'Healthcare': { icon: 'heart-pulse', color: '#EF4444', bg: 'rgba(239, 68, 68, 0.12)' },
+  'Education': { icon: 'graduation-cap', color: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
+  'Miscellaneous': { icon: 'more-horizontal', color: '#64748B', bg: 'rgba(100, 116, 139, 0.12)' },
+  'Salary': { icon: 'briefcase', color: '#10B981', bg: 'rgba(16, 185, 129, 0.12)' },
+  'Freelance': { icon: 'laptop', color: '#06B6D4', bg: 'rgba(6, 182, 212, 0.12)' },
+  'Investments': { icon: 'trending-up', color: '#8B5CF6', bg: 'rgba(139, 92, 246, 0.12)' },
+  'Gifts': { icon: 'gift', color: '#EC4899', bg: 'rgba(236, 72, 153, 0.12)' },
+  'Other': { icon: 'circle-dollar-sign', color: '#64748B', bg: 'rgba(100, 116, 139, 0.12)' }
+};
 
-function formatCurrency(amount) {
-  const curr = (state.user && state.user.currency) || state.currency || 'INR';
-  try {
-    return new Intl.NumberFormat(curr === 'INR' ? 'en-IN' : 'en-US', {
-      style: 'currency',
-      currency: curr
-    }).format(amount);
-  } catch (e) {
-    return `${getCurrencySymbol()}${Number(amount).toFixed(2)}`;
-  }
-}
-
-function setButtonLoading(btn, isLoading, loadingText = 'Processing...') {
-  if (!btn) return;
-  if (isLoading) {
-    btn.disabled = true;
-    btn.dataset.originalHtml = btn.innerHTML;
-    btn.classList.add('is-loading');
-    btn.innerHTML = `<span style="opacity: 0.25;">${loadingText}</span>`;
-  } else {
-    btn.disabled = false;
-    btn.classList.remove('is-loading');
-    if (btn.dataset.originalHtml) {
-      btn.innerHTML = btn.dataset.originalHtml;
-    }
-  }
-}
-
-// Standard Categories Configuration
 const CATEGORIES = {
   expense: [
     'Food & Dining',
@@ -135,31 +126,28 @@ const CATEGORIES = {
   ]
 };
 
-// Color tokens for UI accents
+// Fintech Color System
 const COLORS = {
-  primary: '#2563eb', // Blue-600
-  primaryDark: '#6366f1', // Indigo-500 (used in dark theme)
-  success: '#22c55e', // Green-500
-  danger: '#ef4444', // Red-500
-  warning: '#f59e0b', // Amber-500
-  info: '#0ea5e9', // Sky-500
+  primary: '#7C3AED',
+  primaryHover: '#6D28D9',
+  income: '#10B981',
+  expense: '#F43F5E',
+  warning: '#F59E0B',
+  info: '#3B82F6',
   chartPalette: [
-    '#2563eb', // Blue
-    '#0ea5e9', // Sky
-    '#22c55e', // Green
-    '#f59e0b', // Amber
-    '#ef4444', // Red
-    '#a855f7', // Purple
-    '#ec4899', // Pink
-    '#14b8a6', // Teal
-    '#6366f1'  // Indigo
+    '#7C3AED',
+    '#10B981',
+    '#3B82F6',
+    '#F59E0B',
+    '#EC4899',
+    '#06B6D4',
+    '#F43F5E',
+    '#8B5CF6',
+    '#64748B'
   ]
 };
 
-// ==========================================
-// ==========================================
-// Dynamic SweetAlert & Toast Helper
-// ==========================================
+// Helper: Escape HTML
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -168,6 +156,24 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+function getCurrencySymbol() {
+  const curr = (state.user && state.user.currency) || state.currency || 'INR';
+  return CURRENCY_SYMBOLS[curr] || '₹';
+}
+
+function formatCurrency(amount) {
+  const curr = (state.user && state.user.currency) || state.currency || 'INR';
+  try {
+    return new Intl.NumberFormat(curr === 'INR' ? 'en-IN' : 'en-US', {
+      style: 'currency',
+      currency: curr,
+      maximumFractionDigits: 2
+    }).format(amount);
+  } catch (e) {
+    return `${getCurrencySymbol()}${Number(amount).toFixed(2)}`;
+  }
 }
 
 function isImageAvatar(avatar) {
@@ -187,53 +193,46 @@ function renderAllAvatars(user) {
   const initials = displayName.substring(0, 2).toUpperCase();
   const avatarVal = user.avatar;
 
-  // Sidebar User Avatar
   const sideAvatar = document.getElementById('sidebar-user-avatar');
   if (sideAvatar) {
     if (isImageAvatar(avatarVal)) {
-      sideAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+      sideAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
-      sideAvatar.innerHTML = `<span id="user-initials">${escapeHtml(avatarVal || initials)}</span>`;
+      sideAvatar.innerHTML = `<span id="user-initials">${escapeHtml(initials)}</span>`;
     }
   }
 
-  // Mobile Header User Avatar
-  const mobAvatar = document.querySelector('.mobile-user-avatar');
+  const mobAvatar = document.getElementById('mobile-user-avatar');
   if (mobAvatar) {
-    const mobDropdown = document.getElementById('mobile-dropdown-menu');
     if (isImageAvatar(avatarVal)) {
-      mobAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+      mobAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
-      mobAvatar.innerHTML = `<span id="mobile-user-initials">${escapeHtml(avatarVal || initials)}</span>`;
-    }
-    if (mobDropdown) {
-      mobAvatar.appendChild(mobDropdown);
+      mobAvatar.innerHTML = `<span id="mobile-user-initials">${escapeHtml(initials)}</span>`;
     }
   }
 
-  // Profile Hero Avatar
-  const heroAvatar = document.getElementById('profile-avatar-display');
-  if (heroAvatar) {
+  const profileAvatar = document.getElementById('profile-avatar-display');
+  if (profileAvatar) {
     if (isImageAvatar(avatarVal)) {
-      heroAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" class="avatar-img-fit">`;
+      profileAvatar.innerHTML = `<img src="${avatarVal}" alt="${escapeHtml(displayName)}" style="width:100%; height:100%; object-fit:cover;">`;
     } else {
-      heroAvatar.innerHTML = `<span id="profile-avatar-initials">${escapeHtml(avatarVal || initials)}</span>`;
+      profileAvatar.innerHTML = `<span id="profile-avatar-initials">${escapeHtml(initials)}</span>`;
     }
   }
 }
 
+// SweetAlert2 Theme Helper
 function getSwalTheme() {
   const isDark = document.body.classList.contains('dark-theme');
   return {
-    background: isDark ? '#0d1321' : '#ffffff',
-    color: isDark ? '#f3f4f6' : '#1f2937',
-    confirmButtonColor: isDark ? '#6366f1' : '#2563eb',
-    cancelButtonColor: isDark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+    background: isDark ? '#151C2E' : '#FFFFFF',
+    color: isDark ? '#F8FAFC' : '#111827',
+    confirmButtonColor: '#7C3AED',
+    cancelButtonColor: isDark ? '#263247' : '#E5E7EB',
     customClass: {
-      popup: 'aura-swal-popup',
-      title: 'aura-swal-title',
-      confirmButton: 'aura-swal-confirm-btn',
-      cancelButton: 'aura-swal-cancel-btn'
+      popup: 'fintech-swal',
+      confirmButton: 'fintech-btn-confirm',
+      cancelButton: 'fintech-btn-cancel'
     }
   };
 }
@@ -242,152 +241,65 @@ function getToast() {
   const isDark = document.body.classList.contains('dark-theme');
   return Swal.mixin({
     toast: true,
-    position: 'top',
+    position: 'top-end',
     showConfirmButton: false,
-    timer: 2600,
-    timerProgressBar: false,
-    background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
-    color: isDark ? '#f8fafc' : '#0f172a',
+    timer: 2800,
+    timerProgressBar: true,
+    background: isDark ? '#1C263A' : '#FFFFFF',
+    color: isDark ? '#F8FAFC' : '#111827',
     customClass: {
-      container: 'aura-toast-container',
-      popup: 'aura-toast-pill',
-      title: 'aura-toast-title'
-    },
-    didOpen: (toast) => {
-      toast.addEventListener('mouseenter', Swal.stopTimer);
-      toast.addEventListener('mouseleave', Swal.resumeTimer);
+      popup: 'fintech-swal'
     }
   });
 }
 
-// ==========================================
-// Initialization & Session Management
-// ==========================================
-
+// ==========================================================================
+// Initialization & Global Event Listeners
+// ==========================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Apply saved theme preference or default to light
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  state.theme = savedTheme;
-  if (savedTheme === 'dark') {
-    document.body.className = 'dark-theme';
-  } else {
-    document.body.className = 'light-theme';
-  }
-  updateThemeIcons();
+  // Restore theme
+  const savedTheme = localStorage.getItem('aura_theme') || 'dark';
+  setAppTheme(savedTheme, false);
 
-  // Register PWA Service Worker for offline capability
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('Aura PWA Service Worker active:', reg.scope))
-        .catch((err) => console.log('SW registration error:', err));
-    });
-  }
-
-  // Network Status Monitor
-  updateNetworkStatus();
-  window.addEventListener('online', updateNetworkStatus);
-  window.addEventListener('offline', updateNetworkStatus);
-
-  // PWA Install Prompt Listener
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    state.deferredPwaPrompt = e;
-    const sidebarBtn = document.getElementById('sidebar-btn-install');
-    const mobileBtn = document.getElementById('mobile-btn-install');
-    if (sidebarBtn) sidebarBtn.classList.remove('hidden');
-    if (mobileBtn) mobileBtn.classList.remove('hidden');
+  // Global Search Shortcut (⌘ + K / Ctrl + K)
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const searchInput = document.getElementById('global-search-input');
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
+    }
   });
 
-  // Setup 6-digit OTP Inputs
+  // Setup OTP Inputs
   setupOtpInputs();
 
-  // Check session status
+  // Check user session
   checkSession();
-  
-  // Dynamic category lists loading on Modal Flow Type switch
-  document.querySelectorAll('input[name="tx-type"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      populateCategoryDropdown(e.target.value);
-    });
-  });
 
-  // Handle outside clicks to close dropdowns and modal backdrops
-  window.addEventListener('click', (e) => {
-    const dropdown = document.getElementById('mobile-dropdown-menu');
-    const avatar = document.querySelector('.mobile-user-avatar');
-    if (dropdown && avatar && !avatar.contains(e.target)) {
-      dropdown.classList.add('hidden');
-    }
-    
-    if (e.target.classList && e.target.classList.contains('modal-overlay')) {
-      if (e.target.id === 'transaction-modal') closeTransactionModal();
-      else if (e.target.id === 'forgot-password-modal') closeForgotPasswordModal();
-      else if (e.target.id === 'google-auth-modal') closeGoogleAuthModal();
-      else if (e.target.id === 'avatar-modal') closeAvatarModal();
-      else e.target.classList.add('hidden');
-    }
-  });
+  // Populate avatar presets
+  populateAvatarPresets();
+
+  // Lucide icons setup
+  if (window.lucide) window.lucide.createIcons();
 });
 
-function updateNetworkStatus() {
-  const badge = document.getElementById('network-status');
-  if (!badge) return;
-  if (navigator.onLine) {
-    badge.className = 'network-badge online';
-    badge.innerHTML = '<span class="network-dot"></span><span class="network-text">Online</span>';
-    badge.title = 'Online: Real-time syncing active';
-  } else {
-    badge.className = 'network-badge offline';
-    badge.innerHTML = '<span class="network-dot"></span><span class="network-text">Offline</span>';
-    badge.title = 'Offline: Local changes will sync when reconnected';
-  }
-}
-
-async function triggerPwaInstall() {
-  if (state.deferredPwaPrompt) {
-    state.deferredPwaPrompt.prompt();
-    const { outcome } = await state.deferredPwaPrompt.userChoice;
-    if (outcome === 'accepted') {
-      getToast().fire({ icon: 'success', title: 'Aura App installed!' });
-    }
-    state.deferredPwaPrompt = null;
-    const sidebarBtn = document.getElementById('sidebar-btn-install');
-    const mobileBtn = document.getElementById('mobile-btn-install');
-    if (sidebarBtn) sidebarBtn.classList.add('hidden');
-    if (mobileBtn) mobileBtn.classList.add('hidden');
-  } else {
-    const sw = getSwalTheme();
-    Swal.fire({
-      icon: 'info',
-      title: 'Install Aura Finance App',
-      html: `
-        <div style="text-align: left; font-size: 0.95rem; line-height: 1.6;">
-          <p><strong>Android Chrome:</strong> Tap Menu <strong>⋮</strong> &gt; Select <strong>Install App</strong>.</p>
-          <p style="margin-top: 8px;"><strong>iPhone / iOS Safari:</strong> Tap Share <i data-lucide="share" style="width:16px;height:16px;display:inline;"></i> &gt; Select <strong>Add to Home Screen</strong>.</p>
-          <p style="margin-top: 8px;"><strong>Desktop Chrome / Edge:</strong> Click the install icon in the address bar.</p>
-        </div>
-      `,
-      background: sw.background,
-      color: sw.color,
-      confirmButtonColor: sw.confirmButtonColor,
-      didOpen: () => lucide.createIcons()
-    });
-  }
-}
-
+// ==========================================================================
+// Session & Auth Handling
+// ==========================================================================
 async function checkSession() {
   try {
-    const response = await fetch('/api/auth/me');
-    const data = await response.json();
-    
-    if (data.loggedIn) {
+    const res = await fetch('/api/auth/me');
+    const data = await res.json();
+    if (data.loggedIn && data.user) {
       handleLoginSuccess(data.user);
     } else {
       showAuthScreen();
     }
-  } catch (error) {
-    console.error('Session check failed:', error);
+  } catch (err) {
+    console.error('Session check failed:', err);
     showAuthScreen();
   }
 }
@@ -395,164 +307,167 @@ async function checkSession() {
 function showAuthScreen() {
   document.getElementById('auth-container').classList.remove('hidden');
   document.getElementById('app-container').classList.add('hidden');
-  document.getElementById('mobile-header').classList.add('hidden');
-  document.getElementById('mobile-nav').classList.add('hidden');
-  const fab = document.getElementById('mobile-fab');
-  if (fab) fab.classList.add('hidden');
+  document.getElementById('mobile-header').style.display = 'none';
+  document.getElementById('mobile-nav').style.display = 'none';
   state.user = null;
-  lucide.createIcons();
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function handleLoginSuccess(user) {
   state.user = user;
   state.currency = user.currency || 'INR';
-  
+
   document.getElementById('auth-container').classList.add('hidden');
   document.getElementById('app-container').classList.remove('hidden');
-  
-  // Show header and mobile components (visibility dynamically driven by responsive CSS)
-  const mobHeader = document.getElementById('mobile-header');
-  const mobNav = document.getElementById('mobile-nav');
-  if (mobHeader) mobHeader.classList.remove('hidden');
-  if (mobNav) mobNav.classList.remove('hidden');
-  const fab = document.getElementById('mobile-fab');
-  if (fab) fab.classList.remove('hidden');
 
-  // Update profile name variables
-  const displayName = user.name || user.username;
-  
-  document.getElementById('username-display').textContent = displayName;
-  document.getElementById('mobile-dropdown-name').textContent = displayName;
-  document.getElementById('header-greeting').textContent = `Welcome back, ${displayName}`;
+  // Display mobile elements via responsive classes
+  document.getElementById('mobile-header').style.display = '';
+  document.getElementById('mobile-nav').style.display = '';
 
-  // Render avatars (photos or initials) everywhere
+  const displayName = user.name || user.username || 'Jay Rohit';
+  const usernameDisplay = document.getElementById('username-display');
+  const mobDropdownName = document.getElementById('mobile-dropdown-name');
+  if (usernameDisplay) usernameDisplay.textContent = displayName;
+  if (mobDropdownName) mobDropdownName.textContent = displayName;
+
+  // Personalized dynamic greeting
+  const hour = new Date().getHours();
+  const timeGreeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+  const greetingEl = document.getElementById('header-greeting');
+  if (greetingEl) greetingEl.textContent = `${timeGreeting}, ${displayName}!`;
+
+  // Render all avatars
   renderAllAvatars(user);
 
-  // Update modal currency label
-  document.querySelectorAll('.currency-prefix').forEach(el => {
-    el.textContent = getCurrencySymbol();
-  });
-  const modalAmtLabel = document.querySelector('label[for="modal-tx-amount"]');
-  if (modalAmtLabel) {
-    modalAmtLabel.textContent = `Amount (${getCurrencySymbol()})`;
-  }
-  
-  // Format top header dates
-  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-  document.getElementById('header-date').textContent = new Date().toLocaleDateString('en-US', options);
+  // Populate profile panel inputs
+  const pName = document.getElementById('profile-name');
+  const pUser = document.getElementById('profile-username');
+  const pEmail = document.getElementById('profile-email');
+  const pPhone = document.getElementById('profile-phone');
+  const pBio = document.getElementById('profile-bio');
+  const pCurr = document.getElementById('profile-currency');
 
-  // Populate rich profile section
-  populateProfileDashboard(user);
+  if (pName) pName.value = user.name || '';
+  if (pUser) pUser.value = user.username || '';
+  if (pEmail) pEmail.value = user.email || '';
+  if (pPhone) pPhone.value = user.phone || '';
+  if (pBio) pBio.value = user.bio || '';
+  if (pCurr) pCurr.value = user.currency || 'INR';
 
-  // Initialize data loading
+  // Update modal currency symbols
+  const sym = getCurrencySymbol();
+  const modalSym = document.getElementById('modal-amount-symbol');
+  if (modalSym) modalSym.textContent = sym;
+
+  // Load backend data
   fetchData();
 }
 
-// ==========================================
-// Theme Toggler
-// ==========================================
-function toggleTheme() {
-  const currentTheme = document.body.className;
-  if (currentTheme === 'dark-theme') {
-    document.body.className = 'light-theme';
-    state.theme = 'light';
-    localStorage.setItem('theme', 'light');
-  } else {
-    document.body.className = 'dark-theme';
-    state.theme = 'dark';
-    localStorage.setItem('theme', 'dark');
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-login-submit');
+  const credential = document.getElementById('login-credential').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!credential || !password) {
+    getToast().fire({ icon: 'warning', title: 'Please fill all fields' });
+    return;
   }
-  updateThemeIcons();
-  
-  // Re-draw active charts with the new colors context
-  if (state.activeView === 'analytics') {
-    renderCharts();
-  } else if (state.activeView === 'dashboard') {
-    renderDashboardBudgets();
-  }
-  
-  getToast().fire({
-    icon: 'success',
-    title: `Switched to ${state.theme} mode`
-  });
-}
 
-function updateThemeIcons() {
-  const isDark = state.theme === 'dark';
-  const desktopIcon = document.getElementById('theme-icon-desktop');
-  const mobileIcon = document.getElementById('theme-icon-mobile');
-  
-  if (desktopIcon) desktopIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-  if (mobileIcon) mobileIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
-  
-  const desktopText = document.querySelector('#theme-toggle-desktop span');
-  if (desktopText) desktopText.textContent = isDark ? 'Light Theme' : 'Dark Theme';
-
-  lucide.createIcons();
-}
-
-// Toggle mobile profile menu dropdown
-function toggleMobileMenu() {
-  const dropdown = document.getElementById('mobile-dropdown-menu');
-  if (dropdown) dropdown.classList.toggle('hidden');
-}
-
-// ==========================================
-// API Handlers (Data Retrieval & Refresh)
-// ==========================================
-
-function renderTransactionsSkeleton() {
-  const container = document.getElementById('transactions-list');
-  if (!container) return;
-  let rows = '';
-  for (let i = 0; i < 5; i++) {
-    rows += `
-      <tr class="tx-skeleton-row">
-        <td><div class="skeleton-shimmer skeleton-badge"></div></td>
-        <td><div class="skeleton-shimmer skeleton-text"></div></td>
-        <td><div class="skeleton-shimmer skeleton-text long"></div></td>
-        <td><div class="skeleton-shimmer skeleton-text short"></div></td>
-        <td class="text-right"><div class="skeleton-shimmer skeleton-text short" style="margin-left:auto;"></div></td>
-        <td class="text-center"><div class="skeleton-shimmer skeleton-actions"></div></td>
-      </tr>
-    `;
-  }
-  container.innerHTML = rows;
-}
-
-async function handleManualRefresh() {
-  const desktopBtn = document.getElementById('desktop-btn-refresh');
-  const mobileBtn = document.getElementById('mobile-btn-refresh');
-  if (desktopBtn) desktopBtn.classList.add('is-refreshing');
-  if (mobileBtn) mobileBtn.classList.add('is-refreshing');
-  
-  const txTableLoader = document.getElementById('tx-table-loader');
-  if (txTableLoader) txTableLoader.classList.remove('hidden');
-
-  renderTransactionsSkeleton();
-
+  setButtonLoading(btn, true, 'Signing in...');
   try {
-    await fetchData();
-    getToast().fire({
-      icon: 'success',
-      title: 'Ledger Refreshed'
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential, password })
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+
+    getToast().fire({ icon: 'success', title: 'Welcome back!' });
+    handleLoginSuccess(data.user);
   } catch (err) {
-    console.error('Refresh error:', err);
+    getToast().fire({ icon: 'error', title: err.message });
   } finally {
-    setTimeout(() => {
-      if (desktopBtn) desktopBtn.classList.remove('is-refreshing');
-      if (mobileBtn) mobileBtn.classList.remove('is-refreshing');
-      if (txTableLoader) txTableLoader.classList.add('hidden');
-    }, 450);
+    setButtonLoading(btn, false, 'Sign In');
   }
 }
 
-async function fetchData() {
-  // Show Loading Animation
-  showLoading(true);
+async function handleRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('btn-register-submit');
+  const name = document.getElementById('register-name').value.trim();
+  const username = document.getElementById('register-username').value.trim();
+  const email = document.getElementById('register-email').value.trim();
+  const password = document.getElementById('register-password').value;
+
+  if (!username || !email || !password) {
+    getToast().fire({ icon: 'warning', title: 'Please fill all required fields' });
+    return;
+  }
+
+  setButtonLoading(btn, true, 'Creating account...');
   try {
-    // Parallel fetching for high performance
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, username, email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+
+    getToast().fire({ icon: 'success', title: 'Account created successfully!' });
+    handleLoginSuccess(data.user);
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: err.message });
+  } finally {
+    setButtonLoading(btn, false, 'Create Account');
+  }
+}
+
+async function handleLogout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (err) {}
+  getToast().fire({ icon: 'info', title: 'Logged out successfully' });
+  showAuthScreen();
+}
+
+function switchAuthTab(tab) {
+  const tabLogin = document.getElementById('tab-login');
+  const tabRegister = document.getElementById('tab-register');
+  const formLogin = document.getElementById('login-form');
+  const formRegister = document.getElementById('register-form');
+
+  if (tab === 'login') {
+    tabLogin.classList.add('active');
+    tabRegister.classList.remove('active');
+    formLogin.classList.remove('hidden');
+    formRegister.classList.add('hidden');
+  } else {
+    tabRegister.classList.add('active');
+    tabLogin.classList.remove('active');
+    formRegister.classList.remove('hidden');
+    formLogin.classList.add('hidden');
+  }
+}
+
+function setButtonLoading(btn, loading, text) {
+  if (!btn) return;
+  btn.disabled = loading;
+  if (loading) {
+    btn.dataset.origText = btn.innerHTML;
+    btn.innerHTML = `<span>${text}</span>`;
+  } else if (btn.dataset.origText) {
+    btn.innerHTML = btn.dataset.origText;
+  }
+}
+
+// ==========================================================================
+// Data Fetching & Sync
+// ==========================================================================
+async function fetchData() {
+  try {
     const [txRes, budgetRes] = await Promise.all([
       fetch('/api/transactions'),
       fetch('/api/budgets')
@@ -561,28 +476,18 @@ async function fetchData() {
     state.transactions = await txRes.json();
     state.budgets = await budgetRes.json();
 
-    // Dynamically calculate months list from actual transactions log
     populateMonthSelector();
-    
-    // Set active month selection if empty
+
     if (!state.selectedMonth) {
       state.selectedMonth = getActiveMonth();
-      document.getElementById('dashboard-month-select').value = state.selectedMonth;
+      const select = document.getElementById('dashboard-month-select');
+      if (select) select.value = state.selectedMonth;
     }
 
-    // Now fetch month-filtered summary statistics
     await fetchSummaryStats();
-
-    // Redraw interface views
     updateUI();
-  } catch (error) {
-    console.error('Data retrieval failed:', error);
-    getToast().fire({
-      icon: 'error',
-      title: 'Database connection failed'
-    });
-  } finally {
-    showLoading(false);
+  } catch (err) {
+    console.error('Fetch data error:', err);
   }
 }
 
@@ -591,488 +496,599 @@ async function fetchSummaryStats() {
     const monthParam = state.selectedMonth ? `?month=${state.selectedMonth}` : '';
     const res = await fetch(`/api/stats/summary${monthParam}`);
     state.summary = await res.json();
-  } catch (error) {
-    console.error('Stats query failed:', error);
+  } catch (err) {
+    console.error('Summary query failed:', err);
   }
 }
 
-function showLoading(isLoading) {
-  const loader = document.getElementById('skeleton-loader');
-  const dashboard = document.getElementById('view-dashboard');
-  if (loader && dashboard) {
-    if (isLoading) {
-      loader.classList.remove('hidden');
-      dashboard.classList.add('hidden');
-    } else {
-      loader.classList.add('hidden');
-      dashboard.classList.remove('hidden');
-    }
-  }
-}
+async function handleManualRefresh() {
+  const btn = document.getElementById('desktop-btn-refresh');
+  if (btn) btn.classList.add('is-refreshing');
 
-// Generate a listing of unique transaction months for selector dropdown
-function populateMonthSelector() {
-  const select = document.getElementById('dashboard-month-select');
-  const prevVal = select.value || state.selectedMonth;
-  select.innerHTML = '';
+  await fetchData();
+  getToast().fire({ icon: 'success', title: 'Data updated' });
 
-  const uniqueMonths = [...new Set(state.transactions.map(t => t.date.substring(0, 7)))].sort().reverse();
-  
-  // If no transactions, add current calendar month
-  if (uniqueMonths.length === 0) {
-    const current = new Date().toISOString().substring(0, 7);
-    uniqueMonths.push(current);
-  }
-
-  uniqueMonths.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = formatMonthYear(m);
-    select.appendChild(opt);
-  });
-
-  // Keep state matching selection
-  if (uniqueMonths.includes(prevVal)) {
-    select.value = prevVal;
-    state.selectedMonth = prevVal;
-  } else {
-    state.selectedMonth = uniqueMonths[0];
-    select.value = uniqueMonths[0];
-  }
+  setTimeout(() => {
+    if (btn) btn.classList.remove('is-refreshing');
+  }, 400);
 }
 
 function getActiveMonth() {
-  const uniqueMonths = [...new Set(state.transactions.map(t => t.date.substring(0, 7)))].sort().reverse();
-  if (uniqueMonths.length > 0) {
-    return uniqueMonths[0];
-  }
-  return new Date().toISOString().substring(0, 7);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
-// ==========================================
-// SPA View Controller
-// ==========================================
+function populateMonthSelector() {
+  const select = document.getElementById('dashboard-month-select');
+  if (!select) return;
+
+  const monthSet = new Set();
+  const currentMonth = getActiveMonth();
+  monthSet.add(currentMonth);
+
+  // Add months from transactions
+  state.transactions.forEach(t => {
+    if (t.date && t.date.length >= 7) {
+      monthSet.add(t.date.substring(0, 7));
+    }
+  });
+
+  const sortedMonths = Array.from(monthSet).sort().reverse();
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  select.innerHTML = sortedMonths.map(m => {
+    const [y, mm] = m.split('-');
+    const label = `${monthNames[parseInt(mm, 10) - 1]} ${y}`;
+    return `<option value="${m}">${label}</option>`;
+  }).join('');
+}
+
+async function handleMonthChange() {
+  const select = document.getElementById('dashboard-month-select');
+  if (!select) return;
+  state.selectedMonth = select.value;
+  await fetchSummaryStats();
+  updateUI();
+}
+
+// ==========================================================================
+// SPA Navigation & Views
+// ==========================================================================
 function switchView(viewName) {
   state.activeView = viewName;
   window.scrollTo({ top: 0, behavior: 'instant' });
-  
-  // Update Navigation active styles (sidebar + mobile footer tab)
+
+  // Update navigation link highlights
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.mobile-nav-item').forEach(el => el.classList.remove('active'));
-  
+  document.querySelectorAll('.mobile-nav-btn').forEach(el => el.classList.remove('active'));
+
   const desktopNav = document.getElementById(`nav-${viewName}`);
   const mobileNav = document.getElementById(`mobile-nav-${viewName}`);
   if (desktopNav) desktopNav.classList.add('active');
   if (mobileNav) mobileNav.classList.add('active');
 
-  // Switch display panels visibility
+  // Toggle views
   document.querySelectorAll('.content-view').forEach(view => view.classList.add('hidden'));
   const targetView = document.getElementById(`view-${viewName}`);
   if (targetView) targetView.classList.remove('hidden');
 
-  // Show/Hide Month filter controls in header (hide on budgets, reports, and analytics)
-  const monthFilter = document.getElementById('month-filter-container');
-  if (monthFilter) {
-    if (viewName === 'dashboard') {
-      monthFilter.classList.remove('hidden');
-    } else {
-      monthFilter.classList.add('hidden');
-    }
-  }
-
-  // Reload views contents
+  // Trigger view-specific loaders
   if (viewName === 'analytics') {
     renderCharts();
-    renderInsights();
-  } else if (viewName === 'reports') {
-    resetReportView();
-  } else if (viewName === 'profile') {
-    populateProfileDashboard(state.user);
+  } else if (viewName === 'categories') {
+    renderCategoriesGrid();
+  } else if (viewName === 'savings-goals') {
+    renderGoalsGrid();
+  } else if (viewName === 'dashboard') {
+    renderDashboardOverviewChart(state.chartPeriod);
+    renderDashboardCategoriesChart();
   }
-  
-  lucide.createIcons();
-}
 
-async function handleMonthChange() {
-  state.selectedMonth = document.getElementById('dashboard-month-select').value;
-  showLoading(true);
-  await fetchSummaryStats();
-  updateUI();
-  showLoading(false);
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function updateUI() {
   renderMetrics();
-  renderDashboardBudgets();
+  renderDashboardOverviewChart(state.chartPeriod);
+  renderDashboardCategoriesChart();
   renderDashboardTransactions();
   renderTransactionsList();
   renderBudgetsList();
+  renderCategoriesGrid();
+  renderGoalsGrid();
+  renderInsights();
   populateFilterCategoryDropdown();
-  populateProfileDashboard(state.user);
-  lucide.createIcons();
+  if (window.lucide) window.lucide.createIcons();
 }
 
-// ==========================================
-// Dashboard Metric & Data Renderers
-// ==========================================
+// ==========================================================================
+// Dashboard Renderers & Financial Insights
+// ==========================================================================
 function renderMetrics() {
-  // Compute savings rate
-  const income = state.summary.totalIncome;
-  const expense = state.summary.totalExpense;
+  const income = state.summary.totalIncome || 0;
+  const expense = state.summary.totalExpense || 0;
   const savings = income - expense;
   const rate = income > 0 ? ((savings / income) * 100).toFixed(0) : 0;
-  
-  document.getElementById('metric-balance').textContent = formatCurrency(savings);
-  document.getElementById('metric-income').textContent = formatCurrency(income);
-  document.getElementById('metric-expense').textContent = formatCurrency(expense);
-  document.getElementById('metric-savings').textContent = formatCurrency(savings);
-  
-  const rateBadge = document.getElementById('metric-savings-rate');
-  rateBadge.textContent = `${rate}%`;
-  
-  // Savings Rate Color
-  if (savings < 0) {
-    document.getElementById('metric-balance').className = 'amount text-danger';
-    document.getElementById('metric-savings').className = 'amount text-danger';
-    rateBadge.className = 'text-danger';
-  } else {
-    document.getElementById('metric-balance').className = 'amount text-primary';
-    document.getElementById('metric-savings').className = 'amount text-success';
-    rateBadge.className = 'text-success';
-  }
+
+  const balanceEl = document.getElementById('metric-balance');
+  const incomeEl = document.getElementById('metric-income');
+  const expenseEl = document.getElementById('metric-expense');
+  const savingsEl = document.getElementById('metric-savings');
+  const rateEl = document.getElementById('metric-savings-rate');
+
+  if (balanceEl) balanceEl.textContent = formatCurrency(savings);
+  if (incomeEl) incomeEl.textContent = formatCurrency(income);
+  if (expenseEl) expenseEl.textContent = formatCurrency(expense);
+  if (savingsEl) savingsEl.textContent = formatCurrency(savings);
+  if (rateEl) rateEl.textContent = `${rate}%`;
 }
 
-function renderDashboardBudgets() {
-  const container = document.getElementById('dashboard-budgets');
-  container.innerHTML = '';
-  
-  const budgets = state.summary.budgetsStatus;
-  
-  if (!budgets || budgets.length === 0) {
-    container.innerHTML = `
-      <div class="no-data-msg">
-        <i data-lucide="pie-chart"></i>
-        <p>No active category budgets configured.</p>
-      </div>
-    `;
-    return;
+function toggleDashboardChartPeriod(period) {
+  state.chartPeriod = period;
+  const btnThis = document.getElementById('btn-chart-period-this');
+  const btnLast = document.getElementById('btn-chart-period-last');
+  if (btnThis && btnLast) {
+    if (period === 'this') {
+      btnThis.classList.add('active');
+      btnLast.classList.remove('active');
+    } else {
+      btnLast.classList.add('active');
+      btnThis.classList.remove('active');
+    }
+  }
+  renderDashboardOverviewChart(period);
+}
+
+function renderDashboardOverviewChart(period = 'this') {
+  const canvas = document.getElementById('chart-dashboard-overview');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const isDark = document.body.classList.contains('dark-theme');
+
+  // Filter transactions for period
+  let targetMonth = state.selectedMonth || getActiveMonth();
+  if (period === 'last') {
+    const [y, m] = targetMonth.split('-').map(Number);
+    const lastDate = new Date(y, m - 2, 1);
+    targetMonth = `${lastDate.getFullYear()}-${String(lastDate.getMonth() + 1).padStart(2, '0')}`;
   }
 
-  budgets.forEach(b => {
-    const percentage = b.limit_amount > 0 ? (b.spent / b.limit_amount) * 100 : 0;
-    const formattedPercent = percentage.toFixed(0);
+  const txs = state.transactions.filter(t => t.date && t.date.startsWith(targetMonth));
 
-    let fillClass = '';
-    let warningHTML = '';
-    
-    if (percentage >= 100) {
-      fillClass = 'exceeded';
-      warningHTML = `
-        <span class="budget-limit-exceeded-warning">
-          <i data-lucide="alert-triangle"></i> Exceeded limit by ${formatCurrency(b.spent - b.limit_amount)}
-        </span>
-      `;
-    } else if (percentage >= 80) {
-      fillClass = 'warning';
-      warningHTML = `
-        <span class="budget-limit-exceeded-warning text-warning">
-          <i data-lucide="alert-circle"></i> Approaching category limit
-        </span>
-      `;
+  // 4 Week Buckets
+  const incomeWeeks = [0, 0, 0, 0];
+  const expenseWeeks = [0, 0, 0, 0];
+
+  txs.forEach(t => {
+    const day = parseInt(t.date.split('-')[2], 10) || 1;
+    const weekIdx = Math.min(Math.floor((day - 1) / 7), 3);
+    if (t.type === 'income') incomeWeeks[weekIdx] += t.amount;
+    else expenseWeeks[weekIdx] += t.amount;
+  });
+
+  if (state.charts.dashboardOverview) {
+    state.charts.dashboardOverview.destroy();
+  }
+
+  const incomeGrad = ctx.createLinearGradient(0, 0, 0, 220);
+  incomeGrad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+  incomeGrad.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+  const expenseGrad = ctx.createLinearGradient(0, 0, 0, 220);
+  expenseGrad.addColorStop(0, 'rgba(124, 58, 237, 0.25)');
+  expenseGrad.addColorStop(1, 'rgba(124, 58, 237, 0.0)');
+
+  state.charts.dashboardOverview = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+      datasets: [
+        {
+          label: 'Income',
+          data: incomeWeeks,
+          borderColor: '#10B981',
+          backgroundColor: incomeGrad,
+          fill: true,
+          tension: 0.4,
+          borderWidth: 2.5,
+          pointBackgroundColor: '#10B981',
+          pointBorderColor: '#FFFFFF',
+          pointBorderWidth: 1.5,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        },
+        {
+          label: 'Expenses',
+          data: expenseWeeks,
+          borderColor: '#7C3AED',
+          backgroundColor: expenseGrad,
+          fill: true,
+          tension: 0.4,
+          borderWidth: 2.5,
+          pointBackgroundColor: '#7C3AED',
+          pointBorderColor: '#FFFFFF',
+          pointBorderWidth: 1.5,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1C263A' : '#FFFFFF',
+          titleColor: isDark ? '#F8FAFC' : '#111827',
+          bodyColor: isDark ? '#94A3B8' : '#64748B',
+          borderColor: isDark ? '#263247' : '#E5E7EB',
+          borderWidth: 1,
+          padding: 10,
+          callbacks: {
+            label: (ctx) => ` ${ctx.dataset.label}: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
+          ticks: { color: isDark ? '#64748B' : '#94A3B8', font: { family: 'Inter', size: 11 } }
+        },
+        y: {
+          grid: { color: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)' },
+          ticks: {
+            color: isDark ? '#64748B' : '#94A3B8',
+            font: { family: 'Inter', size: 11 },
+            callback: (v) => formatCurrency(v)
+          }
+        }
+      }
     }
+  });
+}
 
-    const budgetHTML = `
-      <div class="budget-bar-container">
-        <div class="budget-bar-meta">
-          <span class="budget-bar-category">${b.category}</span>
-          <span class="budget-bar-usage">${formatCurrency(b.spent)} of ${formatCurrency(b.limit_amount)} (${formattedPercent}%)</span>
-        </div>
-        <div class="budget-track">
-          <div class="budget-fill ${fillClass}" style="width: ${Math.min(percentage, 100)}%"></div>
-        </div>
-        ${warningHTML}
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', budgetHTML);
+function renderDashboardCategoriesChart() {
+  const canvas = document.getElementById('chart-dashboard-categories');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const isDark = document.body.classList.contains('dark-theme');
+
+  const month = state.selectedMonth || getActiveMonth();
+  const expenses = state.transactions.filter(t => t.type === 'expense' && t.date && t.date.startsWith(month));
+
+  const catMap = {};
+  let totalSpent = 0;
+  expenses.forEach(t => {
+    catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+    totalSpent += t.amount;
+  });
+
+  const totalEl = document.getElementById('dash-donut-total');
+  if (totalEl) totalEl.textContent = formatCurrency(totalSpent);
+
+  const entries = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+  const labels = entries.slice(0, 5).map(e => e[0]);
+  const values = entries.slice(0, 5).map(e => e[1]);
+
+  const legendList = document.getElementById('dash-donut-legend');
+  if (legendList) {
+    if (entries.length === 0) {
+      legendList.innerHTML = `<span style="font-size:0.85rem; color:var(--text-secondary);">No expenses recorded this month.</span>`;
+    } else {
+      legendList.innerHTML = entries.slice(0, 5).map((e, idx) => {
+        const pct = totalSpent > 0 ? Math.round((e[1] / totalSpent) * 100) : 0;
+        const col = COLORS.chartPalette[idx % COLORS.chartPalette.length];
+        return `
+          <div class="donut-legend-row">
+            <div class="donut-legend-left">
+              <span class="legend-dot" style="background-color:${col};"></span>
+              <span>${escapeHtml(e[0])}</span>
+            </div>
+            <span class="donut-legend-pct">${pct}%</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  if (state.charts.dashboardCategories) {
+    state.charts.dashboardCategories.destroy();
+  }
+
+  if (values.length === 0) {
+    labels.push('No Expenses');
+    values.push(1);
+  }
+
+  state.charts.dashboardCategories = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: entries.length > 0 ? COLORS.chartPalette : ['rgba(124, 58, 237, 0.1)'],
+        borderColor: isDark ? '#151C2E' : '#FFFFFF',
+        borderWidth: 2,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '72%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: isDark ? '#1C263A' : '#FFFFFF',
+          titleColor: isDark ? '#F8FAFC' : '#111827',
+          bodyColor: isDark ? '#94A3B8' : '#64748B',
+          borderColor: isDark ? '#263247' : '#E5E7EB',
+          borderWidth: 1,
+          padding: 8,
+          callbacks: {
+            label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.raw)}`
+          }
+        }
+      }
+    }
   });
 }
 
 function renderDashboardTransactions() {
   const container = document.getElementById('dashboard-transactions');
-  container.innerHTML = '';
-  
-  // Show only top 5 recent records for current month
-  const monthlyTx = state.transactions.filter(t => t.date.substring(0, 7) === state.selectedMonth);
-  const recent = monthlyTx.slice(0, 5);
-  
+  if (!container) return;
+
+  const recent = state.transactions.slice(0, 5);
+
   if (recent.length === 0) {
     container.innerHTML = `
-      <tr>
-        <td colspan="4" class="text-center" style="padding: 24px; color: var(--text-muted);">
-          No transactions logged in ${formatMonthYear(state.selectedMonth)}.
-        </td>
-      </tr>
+      <div style="text-align:center; padding:28px 16px; color:var(--text-secondary); font-size:0.875rem;">
+        No recent transactions found. Tap "Add Transaction" to log an expense or income.
+      </div>
     `;
     return;
   }
 
-  recent.forEach(tx => {
-    const amountClass = tx.type === 'income' ? 'text-success font-semibold' : 'text-danger';
-    const amountPrefix = tx.type === 'income' ? '+' : '-';
-    
-    const rowHTML = `
-      <tr class="tx-card-row">
-        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
-        <td class="tx-col-desc">
-          ${escapeHtml(tx.description) || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}
-        </td>
-        <td class="tx-col-date" style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="tx-col-amount text-right ${amountClass}">${amountPrefix}${formatCurrency(tx.amount)}</td>
-      </tr>
+  container.innerHTML = recent.map(tx => {
+    const isInc = tx.type === 'income';
+    const catCfg = CATEGORY_ICONS[tx.category] || { icon: 'tag', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' };
+    const dateFormatted = formatDate(tx.date);
+    const title = tx.description ? escapeHtml(tx.description) : escapeHtml(tx.category);
+
+    return `
+      <div class="recent-tx-item">
+        <div class="recent-tx-left">
+          <div class="tx-cat-icon" style="color:${catCfg.color}; background-color:${catCfg.bg};">
+            <i data-lucide="${catCfg.icon}"></i>
+          </div>
+          <div class="recent-tx-details">
+            <strong>${title}</strong>
+            <span>${escapeHtml(tx.category)} • ${dateFormatted}</span>
+          </div>
+        </div>
+        <span class="recent-tx-amount ${isInc ? 'income' : 'expense'}">
+          ${isInc ? '+' : '-'}${formatCurrency(tx.amount)}
+        </span>
+      </div>
     `;
-    container.insertAdjacentHTML('beforeend', rowHTML);
-  });
+  }).join('');
 }
 
-// ==========================================
-// Transaction Vault Table (Filtering, Sorting, Pagination)
-// ==========================================
-function populateFilterCategoryDropdown() {
-  const select = document.getElementById('tx-category-filter');
-  const prevVal = select.value;
-  select.innerHTML = '<option value="all">All Categories</option>';
-  
-  const uniqueCategories = [...new Set(state.transactions.map(t => t.category))].sort();
-  uniqueCategories.forEach(cat => {
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    select.appendChild(opt);
+function renderInsights() {
+  const textEl = document.getElementById('dash-insight-text');
+  if (!textEl) return;
+
+  const month = state.selectedMonth || getActiveMonth();
+  const txs = state.transactions.filter(t => t.date && t.date.startsWith(month));
+  const expenses = txs.filter(t => t.type === 'expense');
+
+  if (expenses.length === 0) {
+    textEl.textContent = 'Keep logging your expenses to view automated category trends and budget consumption alerts.';
+    return;
+  }
+
+  const catMap = {};
+  let totalExpense = 0;
+  expenses.forEach(t => {
+    catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+    totalExpense += t.amount;
   });
-  select.value = prevVal;
+
+  const sorted = Object.entries(catMap).sort((a, b) => b[1] - a[1]);
+  const [topCat, topAmt] = sorted[0];
+  const pct = Math.round((topAmt / totalExpense) * 100);
+
+  textEl.textContent = `You spent ${formatCurrency(topAmt)} on ${topCat} this month, representing ${pct}% of your total outflows. Consider setting a category budget to cap non-essential spending.`;
 }
 
-function applyFilters() {
-  state.filters.search = document.getElementById('tx-search').value.toLowerCase().trim();
-  state.filters.type = document.getElementById('tx-type-filter').value;
-  state.filters.category = document.getElementById('tx-category-filter').value;
-  state.filters.date = document.getElementById('tx-date-filter').value;
-  state.filters.amount = document.getElementById('tx-amount-filter').value;
-  
-  // Return to first page after filter change
+// ==========================================================================
+// Transactions Page & Filters
+// ==========================================================================
+function setTxTypeFilter(type) {
+  state.filters.type = type;
+  document.querySelectorAll('.tx-tab-btn').forEach(btn => btn.classList.remove('active'));
+  const target = document.getElementById(`tab-tx-${type}`);
+  if (target) target.classList.add('active');
   state.pagination.page = 1;
-  
   renderTransactionsList();
 }
 
-function toggleSort(key) {
-  if (state.sort.key === key) {
-    state.sort.order = state.sort.order === 'asc' ? 'desc' : 'asc';
-  } else {
-    state.sort.key = key;
-    state.sort.order = 'asc';
-  }
-  
+function applyFilters() {
+  const searchInput = document.getElementById('tx-search');
+  const catFilter = document.getElementById('tx-category-filter');
+  const dateFilter = document.getElementById('tx-date-filter');
+  const amtFilter = document.getElementById('tx-amount-filter');
+
+  state.filters.search = searchInput ? searchInput.value.trim().toLowerCase() : '';
+  state.filters.category = catFilter ? catFilter.value : 'all';
+  state.filters.date = dateFilter ? dateFilter.value : 'all';
+  state.filters.amount = amtFilter ? amtFilter.value : 'all';
+
+  state.pagination.page = 1;
   renderTransactionsList();
 }
 
 function getFilteredTransactions() {
   return state.transactions.filter(tx => {
-    // 1. Search Query
-    const matchesSearch = tx.description.toLowerCase().includes(state.filters.search) || 
-                          tx.category.toLowerCase().includes(state.filters.search);
-    
-    // 2. Flow Type
-    const matchesType = state.filters.type === 'all' || tx.type === state.filters.type;
-    
-    // 3. Category
-    const matchesCategory = state.filters.category === 'all' || tx.category === state.filters.category;
-    
-    // 4. Date Preset Range
-    let matchesDate = true;
+    // Type Filter
+    if (state.filters.type !== 'all' && tx.type !== state.filters.type) return false;
+
+    // Search Filter
+    if (state.filters.search) {
+      const q = state.filters.search;
+      const matchDesc = (tx.description || '').toLowerCase().includes(q);
+      const matchCat = (tx.category || '').toLowerCase().includes(q);
+      if (!matchDesc && !matchCat) return false;
+    }
+
+    // Category Filter
+    if (state.filters.category !== 'all' && tx.category !== state.filters.category) return false;
+
+    // Amount Filter
+    if (state.filters.amount === 'low' && tx.amount >= 500) return false;
+    if (state.filters.amount === 'mid' && (tx.amount < 500 || tx.amount > 5000)) return false;
+    if (state.filters.amount === 'high' && tx.amount <= 5000) return false;
+
+    // Date Filter
     if (state.filters.date !== 'all') {
       const txDate = new Date(tx.date);
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      
-      if (state.filters.date === '7days') {
-        const diff = (today - txDate) / (1000 * 60 * 60 * 24);
-        matchesDate = diff <= 7 && diff >= 0;
-      } else if (state.filters.date === '30days') {
-        const diff = (today - txDate) / (1000 * 60 * 60 * 24);
-        matchesDate = diff <= 30 && diff >= 0;
-      } else if (state.filters.date === 'thismonth') {
-        const currentMonthStr = today.toISOString().substring(0, 7);
-        matchesDate = tx.date.substring(0, 7) === currentMonthStr;
-      } else if (state.filters.date === 'lastmonth') {
-        const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const lastMonthStr = lastMonth.toISOString().substring(0, 7);
-        matchesDate = tx.date.substring(0, 7) === lastMonthStr;
-      }
-    }
-    
-    // 5. Amount Ranges
-    let matchesAmount = true;
-    if (state.filters.amount !== 'all') {
-      if (state.filters.amount === 'under100') {
-        matchesAmount = tx.amount < 100;
-      } else if (state.filters.amount === '100to500') {
-        matchesAmount = tx.amount >= 100 && tx.amount <= 500;
-      } else if (state.filters.amount === 'over500') {
-        matchesAmount = tx.amount > 500;
+      const now = new Date();
+      if (state.filters.date === 'today') {
+        if (tx.date !== now.toISOString().split('T')[0]) return false;
+      } else if (state.filters.date === 'month') {
+        const targetMonth = state.selectedMonth || getActiveMonth();
+        if (!tx.date.startsWith(targetMonth)) return false;
       }
     }
 
-    return matchesSearch && matchesType && matchesCategory && matchesDate && matchesAmount;
+    return true;
+  }).sort((a, b) => {
+    if (state.sort.key === 'date') {
+      return state.sort.order === 'desc' ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
+    } else if (state.sort.key === 'amount') {
+      return state.sort.order === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+    }
+    return 0;
   });
 }
 
+function toggleSort(key) {
+  if (state.sort.key === key) {
+    state.sort.order = state.sort.order === 'desc' ? 'asc' : 'desc';
+  } else {
+    state.sort.key = key;
+    state.sort.order = 'desc';
+  }
+  renderTransactionsList();
+}
+
 function renderTransactionsList() {
-  const container = document.getElementById('transactions-list');
-  container.innerHTML = '';
+  const tableBody = document.getElementById('transactions-list');
+  const cardsContainer = document.getElementById('mobile-transactions-cards');
+  if (!tableBody) return;
 
-  let filtered = getFilteredTransactions();
-  
-  // Sort Transactions
-  filtered.sort((a, b) => {
-    let valA = a[state.sort.key];
-    let valB = b[state.sort.key];
-    
-    // Handle string capitalization or dates
-    if (typeof valA === 'string') {
-      valA = valA.toLowerCase();
-      valB = valB.toLowerCase();
-    }
-    
-    if (valA < valB) return state.sort.order === 'asc' ? -1 : 1;
-    if (valA > valB) return state.sort.order === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  // Apply Pagination
+  const filtered = getFilteredTransactions();
   const total = filtered.length;
-  const itemsPerPage = state.pagination.itemsPerPage;
-  const page = state.pagination.page;
-  
-  const startIdx = total === 0 ? 0 : (page - 1) * itemsPerPage;
-  const endIdx = Math.min(page * itemsPerPage, total);
-  
-  const pageItems = filtered.slice(startIdx, endIdx);
+  const { page, itemsPerPage } = state.pagination;
+  const startIdx = (page - 1) * itemsPerPage;
+  const pageItems = filtered.slice(startIdx, startIdx + itemsPerPage);
 
-  // Update Page details on screen
-  document.getElementById('pg-start-idx').textContent = total === 0 ? 0 : startIdx + 1;
-  document.getElementById('pg-end-idx').textContent = endIdx;
-  document.getElementById('pg-total-count').textContent = total;
-  
-  updatePaginationControls(total);
+  // Update pagination indicators
+  const startEl = document.getElementById('pg-start-idx');
+  const endEl = document.getElementById('pg-end-idx');
+  const totalEl = document.getElementById('pg-total-count');
+  const prevBtn = document.getElementById('btn-pg-prev');
+  const nextBtn = document.getElementById('btn-pg-next');
+
+  if (startEl) startEl.textContent = total === 0 ? 0 : startIdx + 1;
+  if (endEl) endEl.textContent = Math.min(startIdx + itemsPerPage, total);
+  if (totalEl) totalEl.textContent = total;
+  if (prevBtn) prevBtn.disabled = page <= 1;
+  if (nextBtn) nextBtn.disabled = startIdx + itemsPerPage >= total;
 
   if (pageItems.length === 0) {
-    container.innerHTML = `
-      <tr>
-        <td colspan="6" class="text-center" style="padding: 40px; color: var(--text-muted);">
-          <i data-lucide="search" style="width:32px; height:32px; opacity:0.3; margin-bottom:12px;"></i>
-          <p>No transactions found matching your filters.</p>
-        </td>
-      </tr>
-    `;
-    lucide.createIcons();
+    tableBody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:36px; color:var(--text-secondary);">No matching transactions found.</td></tr>`;
+    if (cardsContainer) {
+      cardsContainer.innerHTML = `<div style="text-align:center; padding:32px; color:var(--text-secondary);">No transactions match your filters.</div>`;
+    }
     return;
   }
 
-  pageItems.forEach(tx => {
-    const typeBadge = tx.type === 'income' 
-      ? '<span class="badge badge-income"><i data-lucide="arrow-up-right"></i>Income</span>'
-      : '<span class="badge badge-expense"><i data-lucide="arrow-down-left"></i>Expense</span>';
-    
-    const amountClass = tx.type === 'income' ? 'text-success' : 'text-danger';
-    const amountPrefix = tx.type === 'income' ? '+' : '-';
+  // Desktop Table Rows
+  tableBody.innerHTML = pageItems.map(tx => {
+    const isInc = tx.type === 'income';
+    const catCfg = CATEGORY_ICONS[tx.category] || { icon: 'tag', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' };
+    const dateFormatted = formatDate(tx.date);
+    const method = tx.payment_method || 'UPI';
 
-    const rowHTML = `
-      <tr class="tx-card-row">
-        <td class="tx-col-type">${typeBadge}</td>
-        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
-        <td class="tx-col-desc">
-          ${escapeHtml(tx.description) || '<span style="color: var(--text-muted-dark); font-style: italic;">No description</span>'}
+    return `
+      <tr>
+        <td style="color:var(--text-secondary);">${dateFormatted}</td>
+        <td><strong>${escapeHtml(tx.description || tx.category)}</strong></td>
+        <td>
+          <span class="badge-category">
+            <i data-lucide="${catCfg.icon}" style="width:13px; height:13px; color:${catCfg.color};"></i>
+            <span>${escapeHtml(tx.category)}</span>
+          </span>
         </td>
-        <td class="tx-col-date" style="color: var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="tx-col-amount text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatCurrency(tx.amount)}</td>
-        <td class="tx-col-actions text-center">
-          <div class="tx-actions-flex" style="display: flex; gap: 8px; justify-content: center;">
-            <button class="btn-icon edit-btn" onclick="openTransactionModal('${tx.type}', '${tx.id}')" title="Edit record">
-              <i data-lucide="edit-3"></i>
+        <td><span class="badge-payment">${escapeHtml(method)}</span></td>
+        <td style="text-align:right; font-weight:700; color:${isInc ? 'var(--income)' : 'var(--expense)'};">
+          ${isInc ? '+' : '-'}${formatCurrency(tx.amount)}
+        </td>
+        <td style="text-align:right;">
+          <div class="action-buttons-cell" style="justify-content:flex-end;">
+            <button class="btn-table-action" onclick="openTransactionModal('${tx.type}', '${tx.id || tx._id}')" title="Edit">
+              <i data-lucide="pencil" style="width:15px; height:15px;"></i>
             </button>
-            <button class="btn-icon delete-btn" onclick="deleteTransaction('${tx.id}')" title="Delete record">
-              <i data-lucide="trash-2"></i>
+            <button class="btn-table-action delete" onclick="deleteTransaction('${tx.id || tx._id}')" title="Delete">
+              <i data-lucide="trash-2" style="width:15px; height:15px;"></i>
             </button>
           </div>
         </td>
       </tr>
     `;
-    container.insertAdjacentHTML('beforeend', rowHTML);
-  });
-  
-  updateSortIcons();
-  lucide.createIcons();
-}
+  }).join('');
 
-function updateSortIcons() {
-  document.querySelectorAll('.sortable-header').forEach(th => {
-    const icon = th.querySelector('i');
-    if (icon) {
-      icon.setAttribute('data-lucide', 'arrow-up-down');
-      icon.style.opacity = '0.3';
-    }
-  });
+  // Mobile Cards
+  if (cardsContainer) {
+    cardsContainer.innerHTML = pageItems.map(tx => {
+      const isInc = tx.type === 'income';
+      const catCfg = CATEGORY_ICONS[tx.category] || { icon: 'tag', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' };
+      const dateFormatted = formatDate(tx.date);
+      const title = tx.description ? escapeHtml(tx.description) : escapeHtml(tx.category);
 
-  const activeHeader = document.querySelector(`th[onclick="toggleSort('${state.sort.key}')"]`);
-  if (activeHeader) {
-    const icon = activeHeader.querySelector('i');
-    if (icon) {
-      icon.setAttribute('data-lucide', state.sort.order === 'asc' ? 'arrow-up' : 'arrow-down');
-      icon.style.opacity = '1';
-      icon.style.color = 'var(--primary)';
-    }
+      return `
+        <div class="mobile-tx-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="tx-cat-icon" style="color:${catCfg.color}; background-color:${catCfg.bg}; width:34px; height:34px;">
+                <i data-lucide="${catCfg.icon}"></i>
+              </div>
+              <div>
+                <strong>${title}</strong>
+                <div style="font-size:0.75rem; color:var(--text-secondary);">${escapeHtml(tx.category)} • ${dateFormatted}</div>
+              </div>
+            </div>
+            <strong style="color:${isInc ? 'var(--income)' : 'var(--expense)'}; font-size:1rem;">
+              ${isInc ? '+' : '-'}${formatCurrency(tx.amount)}
+            </strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--border-subtle); padding-top:8px;">
+            <span class="badge-payment">${escapeHtml(tx.payment_method || 'UPI')}</span>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="openTransactionModal('${tx.type}', '${tx.id || tx._id}')">Edit</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${tx.id || tx._id}')">Delete</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   }
-}
 
-function updatePaginationControls(totalCount) {
-  const totalPages = Math.ceil(totalCount / state.pagination.itemsPerPage);
-  const prevBtn = document.getElementById('btn-pg-prev');
-  const nextBtn = document.getElementById('btn-pg-next');
-  const list = document.getElementById('pagination-pages-list');
-  list.innerHTML = '';
-  
-  if (totalPages <= 1) {
-    prevBtn.disabled = true;
-    nextBtn.disabled = true;
-    return;
-  }
-  
-  prevBtn.disabled = state.pagination.page === 1;
-  nextBtn.disabled = state.pagination.page === totalPages;
-
-  // Render Page buttons
-  for (let i = 1; i <= totalPages; i++) {
-    // Only display surrounding pages on mobile to keep layouts compact
-    if (totalPages > 5 && Math.abs(state.pagination.page - i) > 2 && i !== 1 && i !== totalPages) {
-      if (i === 2 || i === totalPages - 1) {
-        const dot = document.createElement('span');
-        dot.textContent = '...';
-        dot.style.padding = '0 6px';
-        list.appendChild(dot);
-      }
-      continue;
-    }
-
-    const btn = document.createElement('button');
-    btn.className = `page-num ${state.pagination.page === i ? 'active' : ''}`;
-    btn.textContent = i;
-    btn.onclick = () => {
-      state.pagination.page = i;
-      renderTransactionsList();
-    };
-    list.appendChild(btn);
-  }
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function changePage(delta) {
@@ -1080,961 +1096,372 @@ function changePage(delta) {
   renderTransactionsList();
 }
 
-// ==========================================
-// Transaction Form Modals Control
-// ==========================================
-function populateCategoryDropdown(type, selectedVal = '') {
-  const select = document.getElementById('modal-tx-category');
-  select.innerHTML = '<option value="" disabled selected>Select a category</option>';
-  
-  const categories = CATEGORIES[type] || [];
-  categories.forEach(cat => {
-    const opt = document.createElement('option');
-    opt.value = cat;
-    opt.textContent = cat;
-    select.appendChild(opt);
-  });
-  
-  if (selectedVal) {
-    select.value = selectedVal;
-  }
+function populateFilterCategoryDropdown() {
+  const select = document.getElementById('tx-category-filter');
+  if (!select) return;
+
+  const cats = new Set();
+  state.transactions.forEach(t => cats.add(t.category));
+
+  select.innerHTML = '<option value="all">All Categories</option>' +
+    Array.from(cats).sort().map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
 }
 
-function openTransactionModal(type, editId = null) {
+// ==========================================================================
+// Add / Edit Transaction Modal
+// ==========================================================================
+let currentModalType = 'expense';
+let selectedCategoryName = 'Food & Dining';
+
+function setModalTxType(type) {
+  currentModalType = type;
+  const btnExp = document.getElementById('type-expense');
+  const btnInc = document.getElementById('type-income');
+
+  if (type === 'expense') {
+    btnExp.classList.add('active');
+    btnInc.classList.remove('active');
+  } else {
+    btnInc.classList.add('active');
+    btnExp.classList.remove('active');
+  }
+
+  renderModalCategoryGrid(type);
+}
+
+function renderModalCategoryGrid(type) {
+  const grid = document.getElementById('modal-category-picker-grid');
+  if (!grid) return;
+
+  const catList = CATEGORIES[type] || [];
+  if (!catList.includes(selectedCategoryName)) {
+    selectedCategoryName = catList[0] || '';
+  }
+  document.getElementById('modal-tx-category').value = selectedCategoryName;
+
+  grid.innerHTML = catList.map(cat => {
+    const cfg = CATEGORY_ICONS[cat] || { icon: 'tag', color: '#7C3AED' };
+    const isAct = cat === selectedCategoryName;
+    return `
+      <div class="cat-picker-item ${isAct ? 'active' : ''}" onclick="selectModalCategory('${escapeHtml(cat)}')">
+        <i data-lucide="${cfg.icon}" style="color:${cfg.color};"></i>
+        <span>${escapeHtml(cat)}</span>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function selectModalCategory(cat) {
+  selectedCategoryName = cat;
+  document.getElementById('modal-tx-category').value = cat;
+  renderModalCategoryGrid(currentModalType);
+}
+
+function openTransactionModal(type = 'expense', txId = null) {
   const modal = document.getElementById('transaction-modal');
   const title = document.getElementById('modal-tx-title');
   const submitBtn = document.getElementById('modal-tx-submit-btn');
-  
-  document.getElementById('modal-tx-date').value = new Date().toISOString().split('T')[0];
-  
-  if (editId) {
-    const tx = state.transactions.find(t => String(t.id) === String(editId));
-    if (!tx) return;
-    
-    title.textContent = 'Modify Transaction';
-    submitBtn.textContent = 'Apply Edits';
-    document.getElementById('modal-tx-id').value = editId;
-    
-    if (tx.type === 'expense') {
-      document.getElementById('type-expense').checked = true;
-    } else {
-      document.getElementById('type-income').checked = true;
+  const idInput = document.getElementById('modal-tx-id');
+  const amtInput = document.getElementById('modal-tx-amount');
+  const dateInput = document.getElementById('modal-tx-date');
+  const descInput = document.getElementById('modal-tx-desc');
+
+  dateInput.value = new Date().toISOString().split('T')[0];
+  idInput.value = '';
+  amtInput.value = '';
+  descInput.value = '';
+
+  if (txId) {
+    const tx = state.transactions.find(t => (t.id || t._id) === txId);
+    if (tx) {
+      idInput.value = tx.id || tx._id;
+      amtInput.value = tx.amount;
+      dateInput.value = tx.date;
+      descInput.value = tx.description || '';
+      selectedCategoryName = tx.category;
+      setModalTxType(tx.type);
+      title.textContent = 'Edit Transaction';
+      submitBtn.textContent = 'Update Transaction';
     }
-    
-    document.getElementById('modal-tx-amount').value = tx.amount;
-    document.getElementById('modal-tx-date').value = tx.date;
-    document.getElementById('modal-tx-desc').value = tx.description;
-    
-    populateCategoryDropdown(tx.type, tx.category);
   } else {
-    title.textContent = type === 'expense' ? 'Add New Expense' : 'Add New Income';
-    submitBtn.textContent = 'Save Record';
-    document.getElementById('modal-tx-id').value = '';
-    
-    if (type === 'expense') {
-      document.getElementById('type-expense').checked = true;
-    } else {
-      document.getElementById('type-income').checked = true;
-    }
-    
-    document.getElementById('modal-tx-amount').value = '';
-    document.getElementById('modal-tx-desc').value = '';
-    
-    populateCategoryDropdown(type);
+    selectedCategoryName = type === 'expense' ? 'Food & Dining' : 'Salary';
+    setModalTxType(type);
+    title.textContent = 'Add Transaction';
+    submitBtn.textContent = 'Add Transaction';
   }
-  
+
   modal.classList.remove('hidden');
-  lucide.createIcons();
+  amtInput.focus();
 }
 
 function closeTransactionModal() {
-  document.getElementById('transaction-modal').classList.add('hidden');
-  document.getElementById('transaction-form').reset();
+  const modal = document.getElementById('transaction-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 async function handleSaveTransaction(e) {
   e.preventDefault();
-  
-  const submitBtn = document.getElementById('modal-tx-submit-btn');
-  const id = document.getElementById('modal-tx-id').value;
-  const type = document.querySelector('input[name="tx-type"]:checked').value;
+  const txId = document.getElementById('modal-tx-id').value;
   const amount = parseFloat(document.getElementById('modal-tx-amount').value);
-  const category = document.getElementById('modal-tx-category').value;
+  const category = document.getElementById('modal-tx-category').value || selectedCategoryName;
   const date = document.getElementById('modal-tx-date').value;
-  const description = document.getElementById('modal-tx-desc').value;
+  const description = document.getElementById('modal-tx-desc').value.trim();
+  const paymentMethod = document.getElementById('modal-tx-payment-method').value;
 
-  if (!category) {
-    getToast().fire({ icon: 'warning', title: 'Please select a category' });
+  if (!amount || amount <= 0 || !category || !date) {
+    getToast().fire({ icon: 'warning', title: 'Please provide a valid amount and category' });
     return;
   }
 
-  setButtonLoading(submitBtn, true, 'Saving record...');
-
-  const payload = { type, amount, category, date, description };
-  const method = id ? 'PUT' : 'POST';
-  const url = id ? `/api/transactions/${id}` : '/api/transactions';
+  const payload = {
+    type: currentModalType,
+    amount,
+    category,
+    date,
+    description,
+    payment_method: paymentMethod
+  };
 
   try {
-    const response = await fetch(url, {
+    const url = txId ? `/api/transactions/${txId}` : '/api/transactions';
+    const method = txId ? 'PUT' : 'POST';
+
+    const res = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-    
-    if (response.ok) {
-      getToast().fire({
-        icon: 'success',
-        title: id ? 'Transaction updated!' : 'Transaction recorded!'
-      });
-      closeTransactionModal();
-      fetchData(); // Reload stats and list
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Error Saving Transaction',
-        text: data.error || 'Server error occurred.',
-        confirmButtonColor: sw.confirmButtonColor,
-        background: sw.background,
-        color: sw.color
-      });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to save transaction');
     }
-  } catch (error) {
-    console.error('Failed to commit transaction:', error);
-  } finally {
-    setButtonLoading(submitBtn, false, 'Save Record');
+
+    closeTransactionModal();
+    getToast().fire({ icon: 'success', title: txId ? 'Transaction updated' : 'Transaction recorded' });
+    await fetchData();
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: err.message });
   }
 }
 
-async function deleteTransaction(id) {
+async function deleteTransaction(txId) {
   const sw = getSwalTheme();
   const result = await Swal.fire({
-    title: 'Are you sure?',
-    text: 'This transaction record will be permanently deleted.',
+    title: 'Delete Transaction?',
+    text: 'This action will permanently delete this record from your ledger.',
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: sw.cancelButtonColor,
-    confirmButtonText: 'Yes, delete it!',
+    confirmButtonText: 'Yes, delete',
+    cancelButtonText: 'Cancel',
     background: sw.background,
-    color: sw.color
+    color: sw.color,
+    confirmButtonColor: '#F43F5E',
+    cancelButtonColor: sw.cancelButtonColor
   });
 
   if (result.isConfirmed) {
     try {
-      const response = await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
-      if (response.ok) {
-        getToast().fire({
-          icon: 'success',
-          title: 'Record deleted.'
-        });
-        fetchData();
-      } else {
-        getToast().fire({ icon: 'error', title: 'Failed to delete transaction' });
-      }
-    } catch (error) {
-      console.error('Delete tx failed:', error);
+      const res = await fetch(`/api/transactions/${txId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Deletion failed');
+      getToast().fire({ icon: 'success', title: 'Transaction deleted' });
+      await fetchData();
+    } catch (err) {
+      getToast().fire({ icon: 'error', title: err.message });
     }
   }
 }
 
-// ==========================================
-// Budgets View Managers
-// ==========================================
+// ==========================================================================
+// Budgets Management
+// ==========================================================================
+function renderBudgetsList() {
+  const grid = document.getElementById('budgets-display-list');
+  const amountEl = document.getElementById('overall-budget-amount');
+  const spentEl = document.getElementById('overall-budget-spent');
+  const progressEl = document.getElementById('overall-budget-progress');
+
+  if (!grid) return;
+
+  const month = state.selectedMonth || getActiveMonth();
+  const expenses = state.transactions.filter(t => t.type === 'expense' && t.date && t.date.startsWith(month));
+
+  let totalLimit = 0;
+  let totalSpent = 0;
+
+  state.budgets.forEach(b => {
+    totalLimit += b.limit_amount;
+  });
+
+  expenses.forEach(t => {
+    totalSpent += t.amount;
+  });
+
+  const overallPct = totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
+  if (amountEl) amountEl.textContent = formatCurrency(totalLimit);
+  if (spentEl) spentEl.textContent = `${formatCurrency(totalSpent)} spent of ${formatCurrency(totalLimit)} (${overallPct}%)`;
+  if (progressEl) {
+    progressEl.style.width = `${Math.min(overallPct, 100)}%`;
+    if (overallPct > 100) progressEl.className = 'budget-progress-bar danger';
+    else if (overallPct > 80) progressEl.className = 'budget-progress-bar warning';
+    else progressEl.className = 'budget-progress-bar';
+  }
+
+  if (state.budgets.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align:center; padding:36px; color:var(--text-secondary); background:var(--bg-card); border-radius:var(--radius-xl); border:1px solid var(--border-color);">
+        No category budgets set. Tap "+ New Budget" to set limits for Food, Shopping, Bills, etc.
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = state.budgets.map(b => {
+    const catSpent = expenses
+      .filter(t => t.category === b.category)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const pct = b.limit_amount > 0 ? Math.round((catSpent / b.limit_amount) * 100) : 0;
+    const cfg = CATEGORY_ICONS[b.category] || { icon: 'tag', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' };
+    const barClass = pct > 100 ? 'danger' : pct > 80 ? 'warning' : '';
+
+    return `
+      <div class="category-budget-card">
+        <div class="cat-budget-header">
+          <div class="cat-budget-left">
+            <div class="tx-cat-icon" style="color:${cfg.color}; background-color:${cfg.bg}; width:34px; height:34px;">
+              <i data-lucide="${cfg.icon}"></i>
+            </div>
+            <strong>${escapeHtml(b.category)}</strong>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-table-action delete" onclick="deleteBudget('${b.id || b._id}')" title="Delete Budget">
+              <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="cat-budget-amounts">
+          <div>
+            <strong>${formatCurrency(catSpent)}</strong>
+            <span style="color:var(--text-secondary);"> / ${formatCurrency(b.limit_amount)}</span>
+          </div>
+          <span class="cat-budget-pct" style="color:${pct > 100 ? 'var(--expense)' : pct > 80 ? 'var(--warning)' : 'var(--income)'};">${pct}%</span>
+        </div>
+
+        <div class="budget-progress-track">
+          <div class="budget-progress-bar ${barClass}" style="width: ${Math.min(pct, 100)}%;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function openBudgetModal() {
+  const modal = document.getElementById('budget-modal');
+  const select = document.getElementById('budget-category');
+  const limitInput = document.getElementById('budget-limit');
+
+  if (select) {
+    select.innerHTML = CATEGORIES.expense.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  }
+  if (limitInput) limitInput.value = '';
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeBudgetModal() {
+  const modal = document.getElementById('budget-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
 async function handleSetBudget(e) {
   e.preventDefault();
   const category = document.getElementById('budget-category').value;
-  const limit_amount = parseFloat(document.getElementById('budget-limit').value);
+  const limitAmount = parseFloat(document.getElementById('budget-limit').value);
 
-  if (!category) {
-    getToast().fire({ icon: 'warning', title: 'Please select a category' });
+  if (!category || !limitAmount || limitAmount <= 0) {
+    getToast().fire({ icon: 'warning', title: 'Enter a valid monthly limit amount' });
     return;
   }
 
   try {
-    const response = await fetch('/api/budgets', {
+    const res = await fetch('/api/budgets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, limit_amount })
+      body: JSON.stringify({ category, limit_amount: limitAmount })
     });
 
-    const data = await response.json();
-    if (response.ok) {
-      getToast().fire({
-        icon: 'success',
-        title: `Budget set for ${category}!`
-      });
-      document.getElementById('budget-form').reset();
-      fetchData();
-    } else {
-      getToast().fire({ icon: 'error', title: data.error || 'Failed to establish budget' });
-    }
-  } catch (error) {
-    console.error('Save budget fail:', error);
+    if (!res.ok) throw new Error('Failed to save budget');
+    closeBudgetModal();
+    getToast().fire({ icon: 'success', title: 'Budget saved' });
+    await fetchData();
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: err.message });
   }
 }
 
-async function deleteBudget(id) {
-  const sw = getSwalTheme();
-  const result = await Swal.fire({
-    title: 'Remove budget limit?',
-    text: 'Outflow boundaries for this category will no longer be enforced.',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: sw.cancelButtonColor,
-    confirmButtonText: 'Remove Limit',
-    background: sw.background,
-    color: sw.color
-  });
-
-  if (result.isConfirmed) {
-    try {
-      const response = await fetch(`/api/budgets/${id}`, { method: 'DELETE' });
-      if (response.ok) {
-        getToast().fire({
-          icon: 'success',
-          title: 'Budget rule removed.'
-        });
-        fetchData();
-      }
-    } catch (error) {
-      console.error('Budget delete failed:', error);
-    }
+async function deleteBudget(budgetId) {
+  try {
+    await fetch(`/api/budgets/${budgetId}`, { method: 'DELETE' });
+    getToast().fire({ icon: 'success', title: 'Budget removed' });
+    await fetchData();
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: 'Failed to delete budget' });
   }
 }
 
-function renderBudgetsList() {
-  const container = document.getElementById('budgets-display-list');
-  container.innerHTML = '';
+// ==========================================================================
+// Analytics Charts Rendering
+// ==========================================================================
+async function renderCharts() {
+  const colors = getChartThemeColors();
+  const monthsRange = document.getElementById('analytics-time-range') ? parseInt(document.getElementById('analytics-time-range').value, 10) : 6;
 
-  const budgets = state.summary.budgetsStatus;
+  try {
+    const [trendsRes, catRes] = await Promise.all([
+      fetch(`/api/stats/monthly-trends?months=${monthsRange}`),
+      fetch('/api/stats/category-breakdown')
+    ]);
 
-  if (!budgets || budgets.length === 0) {
-    container.innerHTML = `
-      <div class="no-data-msg" style="grid-column: span 2;">
-        <i data-lucide="pie-chart"></i>
-        <p>No active category constraints found. Configure limits using the panel on the left!</p>
-      </div>
-    `;
-    lucide.createIcons();
-    return;
-  }
+    const trendsData = await trendsRes.json();
+    const catData = await catRes.json();
 
-  budgets.forEach(b => {
-    const percentage = b.limit_amount > 0 ? (b.spent / b.limit_amount) * 100 : 0;
-    const formattedPercent = percentage.toFixed(0);
-    const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-    
-    let fillClass = '';
-    let cardBorder = '';
-    if (percentage >= 100) {
-      fillClass = 'exceeded';
-      cardBorder = 'style="border-color: rgba(239, 68, 68, 0.4);"';
-    } else if (percentage >= 80) {
-      fillClass = 'warning';
-      cardBorder = 'style="border-color: rgba(245, 158, 11, 0.4);"';
-    }
-
-    const cardHTML = `
-      <div class="budget-status-card" ${cardBorder}>
-        <div class="budget-card-header">
-          <span class="budget-card-title">${b.category}</span>
-          <button class="btn-icon delete-btn" onclick="deleteBudget('${b.id}')" title="Delete budget rule">
-            <i data-lucide="minus-circle"></i>
-          </button>
-        </div>
-        <div class="budget-card-amounts">
-          <span class="spent-txt ${percentage >= 100 ? 'text-danger' : percentage >= 80 ? 'text-warning' : 'text-success'}">
-            ${formatter.format(b.spent)}
-          </span>
-          <span class="limit-txt">Monthly Limit: ${formatter.format(b.limit_amount)}</span>
-        </div>
-        <div class="budget-track">
-          <div class="budget-fill ${fillClass}" style="width: ${Math.min(percentage, 100)}%"></div>
-        </div>
-        <span style="font-size: 11px; text-align: right; color: var(--text-muted); font-weight:600; margin-top: -6px;">
-          ${formattedPercent}% Allocated
-        </span>
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', cardHTML);
-  });
-  lucide.createIcons();
-}
-
-// ==========================================
-// Reports Compiler & Exports Engine (New)
-// ==========================================
-function toggleCustomReportDates() {
-  const range = document.getElementById('report-range').value;
-  const dateBlock = document.getElementById('custom-report-dates');
-  if (range === 'custom') {
-    dateBlock.classList.remove('hidden');
-    // Set default dates
-    const endStr = new Date().toISOString().split('T')[0];
-    const start = new Date();
-    start.setDate(start.getDate() - 30);
-    const startStr = start.toISOString().split('T')[0];
-    document.getElementById('report-start-date').value = startStr;
-    document.getElementById('report-end-date').value = endStr;
-  } else {
-    dateBlock.classList.add('hidden');
+    renderTrendsChart(trendsData);
+    renderCategoriesChart(catData);
+    renderBudgetUtilizationChart();
+  } catch (err) {
+    console.error('Analytics chart error:', err);
   }
 }
 
-function resetReportView() {
-  state.report.compiled = false;
-  document.getElementById('report-preview-empty').classList.remove('hidden');
-  document.getElementById('report-preview-content').classList.add('hidden');
-  document.getElementById('report-export-actions').classList.add('hidden');
-}
-
-function handleGenerateReport() {
-  const range = document.getElementById('report-range').value;
-  let startStr = '';
-  let endStr = '';
-  
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  
-  if (range === 'thismonth') {
-    const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === 'lastmonth') {
-    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const end = new Date(today.getFullYear(), today.getMonth(), 0);
-    startStr = start.toISOString().split('T')[0];
-    endStr = end.toISOString().split('T')[0];
-  } else if (range === '7days') {
-    const start = new Date();
-    start.setDate(today.getDate() - 7);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === '30days') {
-    const start = new Date();
-    start.setDate(today.getDate() - 30);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === '3months') {
-    const start = new Date();
-    start.setMonth(today.getMonth() - 3);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === '6months') {
-    const start = new Date();
-    start.setMonth(today.getMonth() - 6);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === 'year') {
-    const start = new Date();
-    start.setFullYear(today.getFullYear() - 1);
-    startStr = start.toISOString().split('T')[0];
-    endStr = today.toISOString().split('T')[0];
-  } else if (range === 'custom') {
-    startStr = document.getElementById('report-start-date').value;
-    endStr = document.getElementById('report-end-date').value;
-    
-    if (!startStr || !endStr) {
-      getToast().fire({ icon: 'warning', title: 'Please select start and end dates' });
-      return;
-    }
-  }
-
-  // Compile Transactions in Date Range
-  const startTimestamp = new Date(startStr + 'T00:00:00');
-  const endTimestamp = new Date(endStr + 'T23:59:59');
-  
-  const reportTx = state.transactions.filter(tx => {
-    const txDate = new Date(tx.date + 'T12:00:00');
-    return txDate >= startTimestamp && txDate <= endTimestamp;
-  });
-
-  // Calculate Metrics
-  let income = 0;
-  let expense = 0;
-  let categorySummary = {};
-  
-  reportTx.forEach(tx => {
-    if (tx.type === 'income') {
-      income += tx.amount;
-    } else {
-      expense += tx.amount;
-      categorySummary[tx.category] = (categorySummary[tx.category] || 0) + tx.amount;
-    }
-  });
-
-  // Find highest category
-  let highestCat = '-';
-  let maxSpent = -1;
-  Object.keys(categorySummary).forEach(cat => {
-    if (categorySummary[cat] > maxSpent) {
-      maxSpent = categorySummary[cat];
-      highestCat = cat;
-    }
-  });
-
-  // Save report compilation state
-  state.report.compiled = true;
-  state.report.range = range;
-  state.report.startDate = startStr;
-  state.report.endDate = endStr;
-  state.report.data = {
-    transactions: reportTx,
-    totalIncome: income,
-    totalExpense: expense,
-    totalSavings: income - expense,
-    highestCategory: highestCat,
-    categorySummary: categorySummary
-  };
-
-  // Populate preview DOM
-  document.getElementById('report-preview-empty').classList.add('hidden');
-  document.getElementById('report-preview-content').classList.remove('hidden');
-  document.getElementById('report-export-actions').classList.remove('hidden');
-  
-  const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-  document.getElementById('report-preview-range').textContent = `Compilation Range: ${startStr} to ${endStr}`;
-  document.getElementById('report-metric-income').textContent = formatter.format(income);
-  document.getElementById('report-metric-expense').textContent = formatter.format(expense);
-  document.getElementById('report-metric-savings').textContent = formatter.format(income - expense);
-  document.getElementById('report-metric-highest').textContent = highestCat === '-' ? '-' : `${highestCat} (${formatter.format(maxSpent)})`;
-  document.getElementById('report-meta-count').textContent = reportTx.length;
-  document.getElementById('report-meta-user').textContent = state.user.username;
-
-  // Savings colors
-  const reportSavingsEl = document.getElementById('report-metric-savings');
-  if (income - expense < 0) {
-    reportSavingsEl.className = 'report-metric-val text-danger';
-  } else {
-    reportSavingsEl.className = 'report-metric-val text-primary';
-  }
-
-  // Populate table
-  const tbody = document.getElementById('report-transactions-list');
-  tbody.innerHTML = '';
-  
-  if (reportTx.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:24px; color:var(--text-muted);">No records found in range.</td></tr>`;
-    return;
-  }
-
-  reportTx.forEach(tx => {
-    const typeBadge = tx.type === 'income' 
-      ? '<span class="badge badge-income">Income</span>'
-      : '<span class="badge badge-expense">Expense</span>';
-    
-    const amountClass = tx.type === 'income' ? 'text-success' : 'text-danger';
-    const amountPrefix = tx.type === 'income' ? '+' : '-';
-    
-    const row = `
-      <tr class="tx-card-row">
-        <td class="tx-col-type">${typeBadge}</td>
-        <td class="tx-col-category"><span class="tx-category-tag">${escapeHtml(tx.category)}</span></td>
-        <td class="tx-col-desc">${escapeHtml(tx.description) || '<span style="color:var(--text-muted-dark); font-style:italic;">No description</span>'}</td>
-        <td class="tx-col-date" style="color:var(--text-muted);">${formatDate(tx.date)}</td>
-        <td class="tx-col-amount text-right ${amountClass}" style="font-weight: 600;">${amountPrefix}${formatter.format(tx.amount)}</td>
-      </tr>
-    `;
-    tbody.insertAdjacentHTML('beforeend', row);
-  });
-  
-  getToast().fire({
-    icon: 'success',
-    title: 'Report compiled successfully!'
-  });
-}
-
-// PDF, Excel, and CSV Export engines
-function exportReport(format) {
-  if (!state.report.compiled) return;
-  
-  const reportData = state.report.data;
-  const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-  const dateRangeStr = `${state.report.startDate} to ${state.report.endDate}`;
-  const filename = `Aura_Finance_Report_${state.report.startDate}_to_${state.report.endDate}`;
-
-  if (format === 'csv') {
-    // Generate CSV
-    let csv = 'Type,Category,Description,Date,Amount (INR)\n';
-    reportData.transactions.forEach(t => {
-      const amount = t.amount.toFixed(2);
-      const desc = (t.description || '').replace(/"/g, '""');
-      csv += `${t.type.toUpperCase()},"${t.category}","${desc}",${t.date},${t.type === 'expense' ? '-' : ''}${amount}\n`;
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `${filename}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    getToast().fire({ icon: 'success', title: 'CSV Downloaded!' });
-    
-  } else if (format === 'excel') {
-    // Generate Excel Sheets via SheetJS
-    const workbook = XLSX.utils.book_new();
-    
-    // Sheet 1: Summary Stats
-    const summaryRows = [
-      ['Aura Finance - Financial Summary Report'],
-      ['Date Range', dateRangeStr],
-      ['Generated On', new Date().toLocaleDateString()],
-      ['Account Holder', state.user.username],
-      [],
-      ['Key Performance Indicators', 'Value (INR)'],
-      ['Total Income', reportData.totalIncome],
-      ['Total Expenses', reportData.totalExpense],
-      ['Net Savings', reportData.totalSavings],
-      ['Highest Category Outflow', reportData.highestCategory],
-      [],
-      ['Category Expenses Summary', 'Spent (INR)']
-    ];
-    
-    Object.keys(reportData.categorySummary).forEach(cat => {
-      summaryRows.push([cat, reportData.categorySummary[cat]]);
-    });
-
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Report Summary');
-    
-    // Sheet 2: Transactions Detail
-    const txRows = [['Type', 'Category', 'Description', 'Date', 'Amount (INR)']];
-    reportData.transactions.forEach(t => {
-      txRows.push([
-        t.type.toUpperCase(),
-        t.category,
-        t.description || '',
-        t.date,
-        t.type === 'expense' ? -t.amount : t.amount
-      ]);
-    });
-    
-    const txSheet = XLSX.utils.aoa_to_sheet(txRows);
-    XLSX.utils.book_append_sheet(workbook, txSheet, 'Transactions Detail');
-    
-    // Trigger download
-    XLSX.writeFile(workbook, `${filename}.xlsx`);
-    getToast().fire({ icon: 'success', title: 'Excel File Downloaded!' });
-    
-  } else if (format === 'pdf') {
-    // Generate Premium PDF Report via jsPDF & AutoTable
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const pdfFormat = (val) => formatter.format(val).replace(/₹/g, 'INR ');
-    
-    // Document Colors Matching Active Theme
-    const isDark = state.theme === 'dark';
-    const bgHeader = [37, 99, 235]; // Premium Blue
-    const textGray = [107, 114, 128];
-    const textDark = [31, 41, 55];
-    
-    // 1. Report Title & Header Banner
-    doc.setFillColor(bgHeader[0], bgHeader[1], bgHeader[2]);
-    doc.rect(0, 0, 210, 42, 'F');
-    
-    doc.setTextColor(255, 255, 255);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
-    doc.text('AURA FINANCE', 14, 18);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text('Smart Elegant Wealth Intelligence', 14, 25);
-    doc.text(`Generated: ${new Date().toLocaleDateString()} | User: ${state.user.username}`, 14, 34);
-    
-    // 2. Report Overview Parameters
-    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('FINANCIAL SUMMARY REPORT', 14, 52);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.text(`Date Scope: ${dateRangeStr}`, 14, 58);
-    
-    // Draw horizontal separator line
-    doc.setDrawColor(226, 232, 240);
-    doc.line(14, 62, 196, 62);
-    
-    // 3. KPI Grid Columns (Mock Cards)
-    doc.setFillColor(248, 250, 252);
-    // Card 1
-    doc.rect(14, 66, 42, 22, 'F');
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.setFontSize(8);
-    doc.text('TOTAL INCOME', 18, 72);
-    doc.setTextColor(34, 197, 94); // success green
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(pdfFormat(reportData.totalIncome), 18, 81);
-    
-    // Card 2
-    doc.setFillColor(248, 250, 252);
-    doc.rect(60, 66, 42, 22, 'F');
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('TOTAL EXPENSE', 64, 72);
-    doc.setTextColor(239, 68, 68); // danger red
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(pdfFormat(reportData.totalExpense), 64, 81);
-    
-    // Card 3
-    doc.setFillColor(248, 250, 252);
-    doc.rect(106, 66, 42, 22, 'F');
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('NET SAVINGS', 110, 72);
-    doc.setTextColor(reportData.totalSavings < 0 ? 239 : 37, reportData.totalSavings < 0 ? 68 : 99, reportData.totalSavings < 0 ? 68 : 235);
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text(pdfFormat(reportData.totalSavings), 110, 81);
-    
-    // Card 4
-    doc.setFillColor(248, 250, 252);
-    doc.rect(152, 66, 44, 22, 'F');
-    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('HIGHEST SPENDING', 156, 72);
-    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text(reportData.highestCategory, 156, 81);
-
-    // 4. Category breakdown table list
-    doc.setTextColor(textDark[0], textDark[1], textDark[2]);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Expense Breakdown by Category', 14, 98);
-    
-    const catRows = [];
-    Object.keys(reportData.categorySummary).forEach(cat => {
-      const spent = reportData.categorySummary[cat];
-      const pct = reportData.totalExpense > 0 ? ((spent / reportData.totalExpense) * 100).toFixed(1) + '%' : '0%';
-      catRows.push([cat, pdfFormat(spent), pct]);
-    });
-    
-    if (catRows.length === 0) {
-      catRows.push(['No expenses recorded in range', '-', '-']);
-    }
-
-    doc.autoTable({
-      startY: 104,
-      head: [['Category', 'Amount Spent', 'Percentage share']],
-      body: catRows,
-      theme: 'striped',
-      headStyles: { fillColor: [37, 99, 235] },
-      margin: { left: 14, right: 14 }
-    });
-
-    // 5. Detailed Transactions table list
-    const finalY = doc.lastAutoTable.finalY + 12;
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Detailed Logs & Transactions', 14, finalY);
-
-    const txTableRows = [];
-    reportData.transactions.forEach(t => {
-      txTableRows.push([
-        t.type.toUpperCase(),
-        t.category,
-        t.description || '',
-        t.date,
-        (t.type === 'expense' ? '-' : '+') + pdfFormat(t.amount)
-      ]);
-    });
-    
-    if (txTableRows.length === 0) {
-      txTableRows.push(['No transactions logged', '-', '-', '-', '-']);
-    }
-
-    doc.autoTable({
-      startY: finalY + 6,
-      head: [['Type', 'Category', 'Description', 'Date', 'Amount']],
-      body: txTableRows,
-      theme: 'grid',
-      headStyles: { fillColor: [71, 85, 105] }, // Cool Slate gray
-      margin: { left: 14, right: 14 },
-      columnStyles: {
-        4: { halign: 'right' }
-      }
-    });
-
-    // Footer page numbers using jsPDF internal loop
-    const pagesCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pagesCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(textGray[0], textGray[1], textGray[2]);
-      doc.text(`Aura Finance Reports | Page ${i} of ${pagesCount}`, 14, 287);
-    }
-    
-    doc.save(`${filename}.pdf`);
-    getToast().fire({ icon: 'success', title: 'PDF File Downloaded!' });
-  }
-}
-
-// ==========================================
-// Analytics Page Calculations & Financial Insights
-// ==========================================
-function renderInsights() {
-  const container = document.getElementById('analytics-insights-list');
-  container.innerHTML = '';
-
-  const expenses = state.transactions.filter(t => t.type === 'expense');
-  const incomes = state.transactions.filter(t => t.type === 'income');
-  
-  if (expenses.length === 0 && incomes.length === 0) {
-    container.innerHTML = `
-      <div class="insight-item insight-item-info">
-        <div class="insight-icon-container"><i data-lucide="info"></i></div>
-        <div>No financial logs available. Add transactions to generate dynamic savings insights!</div>
-      </div>
-    `;
-    lucide.createIcons();
-    return;
-  }
-
-  const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-  const insights = [];
-
-  // Insight 1: Compare selected month spending against previous month
-  const today = new Date();
-  const currentMonthStr = state.selectedMonth || today.toISOString().substring(0, 7);
-  
-  // Parse month values
-  const parts = currentMonthStr.split('-');
-  const yr = parseInt(parts[0], 10);
-  const mn = parseInt(parts[1], 10);
-  
-  // Calculate previous month index
-  const prevMonthDate = new Date(yr, mn - 2, 1);
-  const prevMonthStr = prevMonthDate.toISOString().substring(0, 7);
-  
-  const currentMonthExpenses = expenses.filter(t => t.date.substring(0, 7) === currentMonthStr)
-                                       .reduce((sum, t) => sum + t.amount, 0);
-  const prevMonthExpenses = expenses.filter(t => t.date.substring(0, 7) === prevMonthStr)
-                                    .reduce((sum, t) => sum + t.amount, 0);
-
-  if (prevMonthExpenses > 0) {
-    const diff = currentMonthExpenses - prevMonthExpenses;
-    const pct = ((Math.abs(diff) / prevMonthExpenses) * 100).toFixed(0);
-    
-    if (diff > 0) {
-      insights.push({
-        type: 'warning',
-        text: `Your spending in ${formatMonthYear(currentMonthStr)} increased by <strong>${pct}%</strong> (${formatter.format(diff)}) compared to last month. Consider review category limit caps.`
-      });
-    } else {
-      insights.push({
-        type: 'success',
-        text: `Excellent! You saved <strong>${pct}%</strong> on monthly outflows compared to ${formatMonthYear(prevMonthStr)}. Keep it up!`
-      });
-    }
-  }
-
-  // Insight 2: Category share warning (e.g. food > 30%)
-  const totalMonthExpense = expenses.filter(t => t.date.substring(0, 7) === currentMonthStr)
-                                    .reduce((sum, t) => sum + t.amount, 0);
-  if (totalMonthExpense > 0) {
-    const catSummary = {};
-    expenses.filter(t => t.date.substring(0, 7) === currentMonthStr).forEach(t => {
-      catSummary[t.category] = (catSummary[t.category] || 0) + t.amount;
-    });
-
-    Object.keys(catSummary).forEach(cat => {
-      const spent = catSummary[cat];
-      const ratio = spent / totalMonthExpense;
-      if (ratio > 0.3) {
-        insights.push({
-          type: 'info',
-          text: `Category <strong>${cat}</strong> accounts for <strong>${(ratio * 100).toFixed(0)}%</strong> of your expenses this month. Check if you can reduce budget limits on it.`
-        });
-      }
-    });
-  }
-
-  // Insight 3: Savings rate rate checks
-  const totalIncome = incomes.reduce((sum, t) => sum + t.amount, 0);
-  const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
-  const totalSavings = totalIncome - totalExpense;
-  
-  if (totalIncome > 0) {
-    const savingsRate = (totalSavings / totalIncome) * 100;
-    if (savingsRate > 20) {
-      insights.push({
-        type: 'success',
-        text: `Wow! Your overall lifetime savings rate is <strong>${savingsRate.toFixed(0)}%</strong>. This matches target boundaries for healthy retirement growth.`
-      });
-    } else if (savingsRate < 5 && savingsRate >= 0) {
-      insights.push({
-        type: 'warning',
-        text: `Your overall savings rate of <strong>${savingsRate.toFixed(0)}%</strong> is on the lower side. Aim to save at least 15% of your total earnings.`
-      });
-    } else if (savingsRate < 0) {
-      insights.push({
-        type: 'warning',
-        text: `Critically low savings: You have spent <strong>${formatter.format(Math.abs(totalSavings))}</strong> more than you earned. Review category outflows immediately.`
-      });
-    }
-  }
-
-  // Fallback if no specific triggers matched
-  if (insights.length === 0) {
-    insights.push({
-      type: 'info',
-      text: 'Spend patterns match typical guidelines. Add more transactions to compile deep wealth tips.'
-    });
-  }
-
-  // Render insights list HTML
-  insights.forEach(ins => {
-    let typeClass = 'insight-item-info';
-    let icon = 'info';
-    
-    if (ins.type === 'warning') {
-      typeClass = 'insight-item-warning';
-      icon = 'alert-triangle';
-    } else if (ins.type === 'success') {
-      typeClass = 'insight-item-success';
-      icon = 'check-circle';
-    }
-    
-    const html = `
-      <div class="insight-item ${typeClass}">
-        <div class="insight-icon-container"><i data-lucide="${icon}"></i></div>
-        <div>${ins.text}</div>
-      </div>
-    `;
-    container.insertAdjacentHTML('beforeend', html);
-  });
-  lucide.createIcons();
-}
-
-// ==========================================
-// Chart.js Visualizations (Analytics Panel)
-// ==========================================
 function getChartThemeColors() {
   const isDark = document.body.classList.contains('dark-theme');
   return {
-    gridColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)',
-    tickColor: isDark ? '#9ca3af' : '#475569',
-    legendColor: isDark ? '#9ca3af' : '#475569',
-    tooltipBg: isDark ? '#0d1321' : '#ffffff',
-    tooltipColor: isDark ? '#f3f4f6' : '#1f2937',
-    tooltipBorderColor: isDark ? 'rgba(255,255,255,0.06)' : '#e2e8f0',
-    doughnutBorder: isDark ? '#0d1321' : '#ffffff',
-    barLimitBg: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0,0,0,0.03)',
-    barLimitBorder: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.15)'
+    gridColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+    tickColor: isDark ? '#64748B' : '#94A3B8',
+    legendColor: isDark ? '#94A3B8' : '#64748B',
+    tooltipBg: isDark ? '#1C263A' : '#FFFFFF',
+    tooltipColor: isDark ? '#F8FAFC' : '#111827',
+    tooltipBorderColor: isDark ? '#263247' : '#E5E7EB',
+    doughnutBorder: isDark ? '#151C2E' : '#FFFFFF'
   };
 }
 
-async function renderCharts() {
-  // Clear any existing chart instances to prevent overlapping bugs
-  Object.keys(state.charts).forEach(key => {
-    if (state.charts[key]) {
-      state.charts[key].destroy();
-      state.charts[key] = null;
-    }
-  });
-
-  try {
-    const [breakdownRes, trendsRes] = await Promise.all([
-      fetch('/api/stats/category-breakdown'),
-      fetch('/api/stats/monthly-trends')
-    ]);
-
-    const breakdownData = await breakdownRes.json();
-    const trendsData = await trendsRes.json();
-
-    // 1. Chart 1: Income vs Expense (Double Bar / Line Chart)
-    renderTrendsChart(trendsData);
-
-    // 2. Chart 2: Category Composition (Pie/Doughnut)
-    renderCategoriesChart(breakdownData);
-
-    // 3. Chart 3: Budget Utilization (Bar Chart)
-    renderBudgetUtilizationChart();
-
-    // 4. Render Analytics metrics averages
-    calculateAnalyticsAverages();
-
-  } catch (error) {
-    console.error('Failed to load chart reports:', error);
-  }
-}
-
-function calculateAnalyticsAverages() {
-  const expenses = state.transactions.filter(t => t.type === 'expense');
-  const incomes = state.transactions.filter(t => t.type === 'income');
-  const formatter = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' });
-  
-  if (expenses.length === 0) {
-    document.getElementById('analytics-daily-avg').textContent = '?0.00';
-    document.getElementById('analytics-weekly-avg').textContent = '?0.00';
-    document.getElementById('analytics-savings-rate').textContent = '0%';
-    return;
-  }
-
-  // Get date range limits
-  const dates = expenses.map(t => new Date(t.date));
-  const minDate = new Date(Math.min.apply(null, dates));
-  const maxDate = new Date(Math.max.apply(null, dates));
-  
-  let daysDiff = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) + 1;
-  if (daysDiff < 1) daysDiff = 1;
-  
-  const totalExpense = expenses.reduce((sum, t) => sum + t.amount, 0);
-  const totalIncome = incomes.reduce((sum, t) => sum + t.amount, 0);
-  
-  const dailyAvg = totalExpense / daysDiff;
-  const weeklyAvg = dailyAvg * 7;
-  
-  const savings = totalIncome - totalExpense;
-  const savingsRate = totalIncome > 0 ? ((savings / totalIncome) * 100).toFixed(0) : 0;
-  
-  document.getElementById('analytics-daily-avg').textContent = formatter.format(dailyAvg);
-  document.getElementById('analytics-weekly-avg').textContent = formatter.format(weeklyAvg);
-  
-  const rateBadge = document.getElementById('analytics-savings-rate');
-  rateBadge.textContent = `${savingsRate}%`;
-  rateBadge.className = savings < 0 ? 'amount text-danger' : 'amount text-success';
-}
-
 function renderTrendsChart(data) {
-  const ctx = document.getElementById('chart-trends').getContext('2d');
+  const canvas = document.getElementById('chart-trends');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   const colors = getChartThemeColors();
-  
-  if (data.length === 0) return;
 
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const labels = data.map(item => {
-    const parts = item.month.split('-');
-    const monthIdx = parseInt(parts[1], 10) - 1;
-    return `${monthNames[monthIdx]} ${parts[0]}`;
-  });
+  if (state.charts.trends) state.charts.trends.destroy();
 
-  const incomes = data.map(item => item.income);
-  const expenses = data.map(item => item.expense);
-
-  // Gradient effects
-  const incomeGradient = ctx.createLinearGradient(0, 0, 0, 300);
-  incomeGradient.addColorStop(0, 'rgba(34, 197, 94, 0.25)');
-  incomeGradient.addColorStop(1, 'rgba(34, 197, 94, 0.01)');
-
-  const expenseGradient = ctx.createLinearGradient(0, 0, 0, 300);
-  expenseGradient.addColorStop(0, 'rgba(239, 68, 68, 0.25)');
-  expenseGradient.addColorStop(1, 'rgba(239, 68, 68, 0.01)');
+  const labels = data.map(d => d.label || d.month);
+  const incomes = data.map(d => d.income);
+  const expenses = data.map(d => d.expenses || d.expense);
 
   state.charts.trends = new Chart(ctx, {
     type: 'line',
@@ -2044,55 +1471,29 @@ function renderTrendsChart(data) {
         {
           label: 'Income',
           data: incomes,
-          borderColor: COLORS.success,
-          backgroundColor: incomeGradient,
+          borderColor: '#10B981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
           fill: true,
           tension: 0.35,
-          borderWidth: 3,
-          pointBackgroundColor: COLORS.success,
-          pointHoverRadius: 6
+          borderWidth: 2.5
         },
         {
           label: 'Expenses',
           data: expenses,
-          borderColor: COLORS.danger,
-          backgroundColor: expenseGradient,
+          borderColor: '#7C3AED',
+          backgroundColor: 'rgba(124, 58, 237, 0.1)',
           fill: true,
           tension: 0.35,
-          borderWidth: 3,
-          pointBackgroundColor: COLORS.danger,
-          pointHoverRadius: 6
+          borderWidth: 2.5
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: { color: colors.legendColor, font: { family: 'Inter', weight: 500 } }
-        },
-        tooltip: {
-          padding: 10,
-          backgroundColor: colors.tooltipBg,
-          titleColor: colors.tooltipColor,
-          bodyColor: colors.tooltipColor,
-          borderColor: colors.tooltipBorderColor,
-          borderWidth: 1
-        }
-      },
       scales: {
-        x: {
-          grid: { color: colors.gridColor },
-          ticks: { color: colors.tickColor }
-        },
-        y: {
-          grid: { color: colors.gridColor },
-          ticks: {
-            color: colors.tickColor,
-            callback: value => '?' + value
-          }
-        }
+        x: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor } },
+        y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, callback: v => formatCurrency(v) } }
       }
     }
   });
@@ -2100,20 +1501,14 @@ function renderTrendsChart(data) {
 
 function renderCategoriesChart(data) {
   const canvas = document.getElementById('chart-categories');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const colors = getChartThemeColors();
-  
-  if (data.length === 0) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = "13px Inter";
-    ctx.fillStyle = colors.tickColor;
-    ctx.textAlign = "center";
-    ctx.fillText("No expense data recorded.", canvas.width/2, canvas.height/2);
-    return;
-  }
 
-  const labels = data.map(item => item.category);
-  const values = data.map(item => item.total);
+  if (state.charts.categories) state.charts.categories.destroy();
+
+  const labels = data.map(d => d.category);
+  const values = data.map(d => d.total);
 
   state.charts.categories = new Chart(ctx, {
     type: 'doughnut',
@@ -2122,9 +1517,8 @@ function renderCategoriesChart(data) {
       datasets: [{
         data: values,
         backgroundColor: COLORS.chartPalette,
-        borderWidth: 2,
         borderColor: colors.doughnutBorder,
-        hoverOffset: 8
+        borderWidth: 2
       }]
     },
     options: {
@@ -2132,969 +1526,504 @@ function renderCategoriesChart(data) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: window.innerWidth <= 768 ? 'bottom' : 'right',
-          labels: {
-            color: colors.legendColor,
-            font: { family: 'Inter', size: 11 },
-            boxWidth: 10
-          }
-        },
-        tooltip: {
-          padding: 10,
-          backgroundColor: colors.tooltipBg,
-          bodyColor: colors.tooltipColor,
-          borderColor: colors.tooltipBorderColor,
-          borderWidth: 1,
-          callbacks: {
-            label: function(context) {
-              const val = context.raw;
-              const total = context.dataset.data.reduce((a, b) => a + b, 0);
-              const percent = ((val / total) * 100).toFixed(1);
-              return ` ${context.label}: $${val.toFixed(2)} (${percent}%)`;
-            }
-          }
+          position: 'right',
+          labels: { color: colors.legendColor, font: { family: 'Inter', size: 11 } }
         }
-      },
-      cutout: '70%'
+      }
     }
   });
 }
 
 function renderBudgetUtilizationChart() {
-  const ctx = document.getElementById('chart-budget-utilization').getContext('2d');
+  const canvas = document.getElementById('chart-budget-utilization');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   const colors = getChartThemeColors();
-  
-  const budgets = state.summary.budgetsStatus;
-  if (!budgets || budgets.length === 0) return;
 
-  const labels = budgets.map(b => b.category);
-  const limits = budgets.map(b => b.limit_amount);
-  const spents = budgets.map(b => b.spent);
+  if (state.charts.utilization) state.charts.utilization.destroy();
+
+  const labels = state.budgets.map(b => b.category);
+  const limits = state.budgets.map(b => b.limit_amount);
+
+  const month = state.selectedMonth || getActiveMonth();
+  const expenses = state.transactions.filter(t => t.type === 'expense' && t.date && t.date.startsWith(month));
+
+  const spents = state.budgets.map(b => {
+    return expenses.filter(t => t.category === b.category).reduce((s, t) => s + t.amount, 0);
+  });
 
   state.charts.utilization = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [
-        {
-          label: 'Actual Spent',
-          data: spents,
-          backgroundColor: spents.map((s, i) => s > limits[i] ? 'rgba(239, 68, 68, 0.75)' : 'rgba(34, 197, 94, 0.75)'),
-          borderColor: spents.map((s, i) => s > limits[i] ? COLORS.danger : COLORS.success),
-          borderWidth: 1.5,
-          borderRadius: 4
-        },
-        {
-          label: 'Budget Limit',
-          data: limits,
-          backgroundColor: colors.barLimitBg,
-          borderColor: colors.barLimitBorder,
-          borderWidth: 1.5,
-          borderDash: [4, 4],
-          borderRadius: 4
-        }
+        { label: 'Limit', data: limits, backgroundColor: colors.gridColor },
+        { label: 'Spent', data: spents, backgroundColor: '#7C3AED' }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: { color: colors.legendColor, font: { family: 'Inter', weight: 500 } }
-        },
-        tooltip: {
-          padding: 10,
-          backgroundColor: colors.tooltipBg,
-          bodyColor: colors.tooltipColor,
-          borderColor: colors.tooltipBorderColor,
-          borderWidth: 1
-        }
-      },
       scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: colors.tickColor }
-        },
-        y: {
-          grid: { color: colors.gridColor },
-          ticks: {
-            color: colors.tickColor,
-            callback: value => '?' + value
-          }
-        }
+        x: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor } },
+        y: { grid: { color: colors.gridColor }, ticks: { color: colors.tickColor, callback: v => formatCurrency(v) } }
       }
     }
   });
 }
 
-// ==========================================
-// Helper Utilities
-// ==========================================
-function formatDate(dateString) {
-  if (!dateString) return '';
-  const parts = dateString.split('-');
-  const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-  
-  return dateObj.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  });
-}
-
-function formatMonthYear(monthStr) {
-  if (!monthStr) return '';
-  const parts = monthStr.split('-');
-  const dateObj = new Date(parts[0], parts[1] - 1, 1);
-  return dateObj.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric'
-  });
-}
-
-// ==========================================
-// Authentication Handlers
-// ==========================================
-function switchAuthTab(tab) {
-  const loginForm = document.getElementById('login-form');
-  const registerForm = document.getElementById('register-form');
-  const loginTab = document.getElementById('tab-login');
-  const registerTab = document.getElementById('tab-register');
-
-  if (tab === 'login') {
-    loginForm.classList.remove('hidden');
-    registerForm.classList.add('hidden');
-    loginTab.classList.add('active');
-    registerTab.classList.remove('active');
-  } else {
-    loginForm.classList.add('hidden');
-    registerForm.classList.remove('hidden');
-    loginTab.classList.remove('active');
-    registerTab.classList.add('active');
-  }
-}
-
-async function handleLogin(e) {
-  e.preventDefault();
-  const submitBtn = document.getElementById('btn-login-submit');
-  const credential = document.getElementById('login-credential').value;
-  const password = document.getElementById('login-password').value;
-
-  setButtonLoading(submitBtn, true, 'Signing In...');
-
-  try {
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential, password })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      getToast().fire({ icon: 'success', title: data.message });
-      handleLoginSuccess(data.user);
+// ==========================================================================
+// Categories Management
+// ==========================================================================
+function switchCategoryTab(tab) {
+  state.currentCategoryTab = tab;
+  const btnExp = document.getElementById('tab-cat-expense');
+  const btnInc = document.getElementById('tab-cat-income');
+  if (btnExp && btnInc) {
+    if (tab === 'expense') {
+      btnExp.classList.add('active');
+      btnInc.classList.remove('active');
     } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Login Failed',
-        text: data.error || 'Invalid credentials.',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
+      btnInc.classList.add('active');
+      btnExp.classList.remove('active');
     }
-  } catch (err) {
-    console.error('Login error:', err);
-  } finally {
-    setButtonLoading(submitBtn, false, '<span>Sign In</span> <i data-lucide="arrow-right"></i>');
-    lucide.createIcons();
   }
+  renderCategoriesGrid();
 }
 
-async function handleRegister(e) {
-  e.preventDefault();
-  const submitBtn = document.getElementById('btn-register-submit');
-  const name = document.getElementById('register-name').value;
-  const username = document.getElementById('register-username').value;
-  const email = document.getElementById('register-email').value;
-  const password = document.getElementById('register-password').value;
-
-  setButtonLoading(submitBtn, true, 'Creating Account...');
-
-  try {
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, username, email, password })
-    });
-    
-    const data = await response.json();
-    
-    if (response.ok) {
-      getToast().fire({ icon: 'success', title: data.message });
-      handleLoginSuccess(data.user);
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Registration Failed',
-        text: data.error || 'Could not register user.',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
-  } catch (err) {
-    console.error('Registration error:', err);
-  } finally {
-    setButtonLoading(submitBtn, false, '<span>Create Account</span> <i data-lucide="user-plus"></i>');
-    lucide.createIcons();
-  }
-}
-
-async function handleLogout() {
-  try {
-    const response = await fetch('/api/auth/logout', { method: 'POST' });
-    if (response.ok) {
-      showAuthScreen();
-      getToast().fire({ icon: 'info', title: 'Logged out successfully' });
-    }
-  } catch (err) {
-    console.error('Logout error:', err);
-  }
-}
-
-// ==========================================
-// Google / Gmail Authentication & Account Chooser
-// ==========================================
-function getSavedGoogleAccounts() {
-  try {
-    const raw = localStorage.getItem('aura_google_accounts');
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    return [];
-  }
-}
-
-function saveGoogleAccountLocally(acc) {
-  try {
-    let accounts = getSavedGoogleAccounts();
-    accounts = accounts.filter(a => a.email.toLowerCase() !== acc.email.toLowerCase());
-    accounts.unshift(acc);
-    if (accounts.length > 5) accounts = accounts.slice(0, 5);
-    localStorage.setItem('aura_google_accounts', JSON.stringify(accounts));
-  } catch (e) {
-    console.error('Failed to save google account:', e);
-  }
-}
-
-function removeSavedGoogleAccount(e, email) {
-  e.stopPropagation();
-  try {
-    let accounts = getSavedGoogleAccounts();
-    accounts = accounts.filter(a => a.email.toLowerCase() !== email.toLowerCase());
-    localStorage.setItem('aura_google_accounts', JSON.stringify(accounts));
-    renderGoogleAuthContent();
-  } catch (err) {
-    console.error('Failed to remove account:', err);
-  }
-}
-
-function openGoogleAuthModal() {
-  const modal = document.getElementById('google-auth-modal');
-  if (modal) {
-    modal.classList.remove('hidden');
-    renderGoogleAuthContent();
-    lucide.createIcons();
-  }
-}
-
-function closeGoogleAuthModal() {
-  const modal = document.getElementById('google-auth-modal');
-  if (modal) modal.classList.add('hidden');
-}
-
-function renderGoogleAuthContent(forceNewAccountView = false) {
-  const container = document.getElementById('google-auth-content');
-  const subtitle = document.getElementById('google-modal-subtitle');
+function renderCategoriesGrid() {
+  const container = document.getElementById('categories-grid-container');
   if (!container) return;
 
-  const savedAccounts = getSavedGoogleAccounts();
+  const type = state.currentCategoryTab || 'expense';
+  const catList = CATEGORIES[type] || [];
 
-  if (savedAccounts.length > 0 && !forceNewAccountView) {
-    if (subtitle) subtitle.innerHTML = 'Choose an account to continue to <strong>Aura Finance</strong>';
-    
-    let html = `<div class="google-accounts-list">`;
-    savedAccounts.forEach(acc => {
-      const initial = (acc.name || acc.email).charAt(0).toUpperCase();
-      html += `
-        <div class="google-account-item" onclick="handleGoogleAccountPick('${escapeHtml(acc.name || acc.email.split('@')[0])}', '${escapeHtml(acc.email)}')">
-          <div class="google-avatar-circle bg-blue">${escapeHtml(initial)}</div>
-          <div class="google-account-details">
-            <strong>${escapeHtml(acc.name || acc.email.split('@')[0])}</strong>
-            <span>${escapeHtml(acc.email)}</span>
-          </div>
-          <button type="button" class="btn-remove-account" onclick="removeSavedGoogleAccount(event, '${escapeHtml(acc.email)}')" title="Remove from this device">
-            <i data-lucide="x"></i>
-          </button>
-        </div>
-      `;
-    });
+  const month = state.selectedMonth || getActiveMonth();
+  const txs = state.transactions.filter(t => t.type === type && t.date && t.date.startsWith(month));
 
-    html += `
-      <button type="button" class="google-account-item google-use-another-btn" onclick="renderGoogleAuthContent(true)">
-        <div class="google-avatar-circle bg-neutral"><i data-lucide="user-plus"></i></div>
-        <div class="google-account-details">
-          <strong>Use another account</strong>
-          <span>Sign in with another Gmail or Google account</span>
-        </div>
-        <i data-lucide="chevron-right" class="arrow-icon"></i>
-      </button>
-    </div>`;
+  const cardsHtml = catList.map(cat => {
+    const cfg = CATEGORY_ICONS[cat] || { icon: 'tag', color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' };
+    const matchingTxs = txs.filter(t => t.category === cat);
+    const sum = matchingTxs.reduce((s, t) => s + t.amount, 0);
 
-    container.innerHTML = html;
-  } else {
-    if (subtitle) subtitle.innerHTML = 'Enter your Google or Gmail account to continue';
-    
-    container.innerHTML = `
-      <form onsubmit="handleGoogleFormSubmit(event)" class="google-signin-form">
-        <div class="input-group">
-          <label for="google-input-email">Email or phone</label>
-          <div class="input-wrapper">
-            <i data-lucide="mail" class="input-icon"></i>
-            <input type="email" id="google-input-email" placeholder="you@gmail.com" required autocomplete="email" autofocus>
-          </div>
+    return `
+      <div class="category-card">
+        <div class="category-icon-circle" style="color:${cfg.color}; background-color:${cfg.bg};">
+          <i data-lucide="${cfg.icon}"></i>
         </div>
-
-        <div class="input-group">
-          <label for="google-input-name">Your Full Name (Optional)</label>
-          <div class="input-wrapper">
-            <i data-lucide="user" class="input-icon"></i>
-            <input type="text" id="google-input-name" placeholder="e.g. Alex Morgan" autocomplete="name">
-          </div>
-        </div>
-
-        <div class="google-form-actions">
-          ${savedAccounts.length > 0 ? `
-            <button type="button" class="btn btn-secondary" onclick="renderGoogleAuthContent(false)">
-              <i data-lucide="arrow-left"></i>
-              <span>Back</span>
-            </button>
-          ` : ''}
-          <button type="submit" class="btn btn-primary btn-google-submit">
-            <span>Continue with Google</span>
-            <i data-lucide="arrow-right"></i>
-          </button>
-        </div>
-      </form>
+        <div class="category-card-name">${escapeHtml(cat)}</div>
+        <div class="category-card-meta">${matchingTxs.length} records • ${formatCurrency(sum)}</div>
+      </div>
     `;
-  }
+  }).join('');
 
-  lucide.createIcons();
+  const addCardHtml = `
+    <div class="category-card custom-add" onclick="openCategoryModal()">
+      <div class="category-icon-circle" style="background-color:var(--bg-secondary); color:var(--text-secondary);">
+        <i data-lucide="plus"></i>
+      </div>
+      <div class="category-card-name">+ Custom Category</div>
+      <div class="category-card-meta">Create your own label</div>
+    </div>
+  `;
+
+  container.innerHTML = cardsHtml + addCardHtml;
+  if (window.lucide) window.lucide.createIcons();
 }
 
-function handleGoogleFormSubmit(e) {
+let customCategoryType = 'expense';
+let customCategoryIcon = 'tag';
+
+function setCustomCategoryType(type) {
+  customCategoryType = type;
+  const btnExp = document.getElementById('modal-cat-type-expense');
+  const btnInc = document.getElementById('modal-cat-type-income');
+  if (btnExp && btnInc) {
+    if (type === 'expense') {
+      btnExp.classList.add('active');
+      btnInc.classList.remove('active');
+    } else {
+      btnInc.classList.add('active');
+      btnExp.classList.remove('active');
+    }
+  }
+}
+
+function openCategoryModal() {
+  const modal = document.getElementById('category-modal');
+  const nameInput = document.getElementById('custom-cat-name');
+  if (nameInput) nameInput.value = '';
+  renderCustomCategoryIconPicker();
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeCategoryModal() {
+  const modal = document.getElementById('category-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderCustomCategoryIconPicker() {
+  const grid = document.getElementById('custom-cat-icon-grid');
+  if (!grid) return;
+
+  const availableIcons = [
+    'utensils', 'shopping-bag', 'tv', 'zap', 'home',
+    'plane', 'heart-pulse', 'graduation-cap', 'briefcase', 'laptop',
+    'trending-up', 'gift', 'tag', 'smartphone', 'coffee'
+  ];
+
+  grid.innerHTML = availableIcons.map(ic => {
+    return `
+      <div class="cat-picker-item ${ic === customCategoryIcon ? 'active' : ''}" onclick="selectCustomCatIcon('${ic}')">
+        <i data-lucide="${ic}"></i>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function selectCustomCatIcon(ic) {
+  customCategoryIcon = ic;
+  renderCustomCategoryIconPicker();
+}
+
+function handleSaveCustomCategory(e) {
   e.preventDefault();
-  const emailInput = document.getElementById('google-input-email');
-  const nameInput = document.getElementById('google-input-name');
-  if (!emailInput) return;
+  const name = document.getElementById('custom-cat-name').value.trim();
+  if (!name) return;
 
-  const email = emailInput.value.trim().toLowerCase();
-  if (!email) return;
-
-  let name = nameInput ? nameInput.value.trim() : '';
-  if (!name) {
-    const localPart = email.split('@')[0].replace(/[._-]/g, ' ');
-    name = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+  if (!CATEGORIES[customCategoryType].includes(name)) {
+    CATEGORIES[customCategoryType].push(name);
   }
+  CATEGORY_ICONS[name] = {
+    icon: customCategoryIcon,
+    color: '#7C3AED',
+    bg: 'rgba(124, 58, 237, 0.12)'
+  };
 
-  handleGoogleAccountPick(name, email);
+  closeCategoryModal();
+  getToast().fire({ icon: 'success', title: `Added "${name}" category` });
+  renderCategoriesGrid();
+  populateFilterCategoryDropdown();
 }
 
-async function handleGoogleAccountPick(name, email) {
-  closeGoogleAuthModal();
-  const sw = getSwalTheme();
-  Swal.fire({
-    title: 'Connecting to Google...',
-    text: `Authorizing account ${email}`,
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-    background: sw.background,
-    color: sw.color
+// ==========================================================================
+// Savings Goals Management
+// ==========================================================================
+function getGoalsStorageKey() {
+  const uid = (state.user && (state.user.id || state.user._id)) || 'guest';
+  return `aura_savings_goals_${uid}`;
+}
+
+function loadSavedGoals() {
+  try {
+    const raw = localStorage.getItem(getGoalsStorageKey());
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+
+  // Defaults matching design board mockup
+  return [
+    { id: 'goal-1', name: 'Trip to Japan', target: 50000, saved: 25000, date: '2026-12-31' },
+    { id: 'goal-2', name: 'New Laptop', target: 75000, saved: 30000, date: '2026-11-30' }
+  ];
+}
+
+function saveGoals(goals) {
+  try {
+    localStorage.setItem(getGoalsStorageKey(), JSON.stringify(goals));
+  } catch (e) {}
+}
+
+function renderGoalsGrid() {
+  const container = document.getElementById('goals-grid-container');
+  if (!container) return;
+
+  const goals = loadSavedGoals();
+
+  if (goals.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align:center; padding:36px; color:var(--text-secondary); background:var(--bg-card); border-radius:var(--radius-xl); border:1px solid var(--border-color);">
+        No savings goals created yet. Tap "+ New Goal" to start tracking milestones!
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = goals.map(g => {
+    const pct = g.target > 0 ? Math.min(Math.round((g.saved / g.target) * 100), 100) : 0;
+    return `
+      <div class="goal-card">
+        <div class="goal-card-header">
+          <div class="goal-title-group">
+            <div class="goal-avatar-badge">
+              <i data-lucide="target"></i>
+            </div>
+            <div>
+              <h4>${escapeHtml(g.name)}</h4>
+              <span>Target Date: ${g.date}</span>
+            </div>
+          </div>
+          <button class="btn-table-action delete" onclick="deleteGoal('${g.id}')" title="Delete Goal">
+            <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+          </button>
+        </div>
+
+        <div class="goal-amount-row">
+          <strong>${formatCurrency(g.saved)}</strong>
+          <span>of ${formatCurrency(g.target)} (${pct}%)</span>
+        </div>
+
+        <div class="budget-progress-track">
+          <div class="budget-progress-bar" style="width:${pct}%;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px;">
+          <button class="btn btn-outline btn-sm" onclick="openGoalDepositModal('${g.id}')">
+            <i data-lucide="plus"></i>
+            <span>Add Funds</span>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function openGoalModal() {
+  const modal = document.getElementById('goal-modal');
+  const name = document.getElementById('goal-name');
+  const target = document.getElementById('goal-target');
+  const saved = document.getElementById('goal-saved');
+  const date = document.getElementById('goal-date');
+
+  if (name) name.value = '';
+  if (target) target.value = '';
+  if (saved) saved.value = '0';
+  if (date) date.value = new Date().toISOString().split('T')[0];
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeGoalModal() {
+  const modal = document.getElementById('goal-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function handleSaveGoal(e) {
+  e.preventDefault();
+  const name = document.getElementById('goal-name').value.trim();
+  const target = parseFloat(document.getElementById('goal-target').value);
+  const saved = parseFloat(document.getElementById('goal-saved').value) || 0;
+  const date = document.getElementById('goal-date').value;
+
+  if (!name || !target || target <= 0) {
+    getToast().fire({ icon: 'warning', title: 'Please provide valid goal details' });
+    return;
+  }
+
+  const goals = loadSavedGoals();
+  goals.push({
+    id: `goal-${Date.now()}`,
+    name,
+    target,
+    saved,
+    date
   });
 
-  try {
-    const res = await fetch('/api/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email,
-        name,
-        google_id: `google_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
-        avatar: name.charAt(0).toUpperCase()
-      })
-    });
-    const data = await res.json();
-    Swal.close();
-
-    if (res.ok) {
-      saveGoogleAccountLocally({ name: data.user.name || name, email });
-      getToast().fire({ icon: 'success', title: 'Signed in with Google successfully!' });
-      handleLoginSuccess(data.user);
-    } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'Google Sign In Failed',
-        text: data.error || 'Authentication failed',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
-  } catch (err) {
-    console.error('Google auth fetch failed:', err);
-    Swal.fire({ icon: 'error', title: 'Connection Error', text: err.message, background: sw.background, color: sw.color });
-  }
+  saveGoals(goals);
+  closeGoalModal();
+  getToast().fire({ icon: 'success', title: 'Goal created' });
+  renderGoalsGrid();
 }
 
-// ==========================================
-// Account Recovery & OTP Verification
-// ==========================================
-function openForgotPasswordModal() {
-  const modal = document.getElementById('forgot-password-modal');
-  if (modal) {
-    const emailInput = document.getElementById('fp-email');
-    if (emailInput) emailInput.value = '';
-    fpGoToStep(1);
-    modal.classList.remove('hidden');
-    lucide.createIcons();
-  }
+function deleteGoal(id) {
+  let goals = loadSavedGoals();
+  goals = goals.filter(g => g.id !== id);
+  saveGoals(goals);
+  getToast().fire({ icon: 'success', title: 'Goal deleted' });
+  renderGoalsGrid();
 }
 
-function closeForgotPasswordModal() {
-  const modal = document.getElementById('forgot-password-modal');
+function openGoalDepositModal(id) {
+  const modal = document.getElementById('goal-deposit-modal');
+  const goals = loadSavedGoals();
+  const goal = goals.find(g => g.id === id);
+  if (!goal) return;
+
+  document.getElementById('deposit-goal-id').value = id;
+  document.getElementById('deposit-goal-info').textContent = `Adding savings toward: ${goal.name}`;
+  document.getElementById('deposit-goal-amount').value = '';
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeGoalDepositModal() {
+  const modal = document.getElementById('goal-deposit-modal');
   if (modal) modal.classList.add('hidden');
-  if (state.otpState.timerInterval) {
-    clearInterval(state.otpState.timerInterval);
-    state.otpState.timerInterval = null;
-  }
 }
 
-function fpGoToStep(step) {
-  state.otpState.targetStep = step;
-  for (let i = 1; i <= 4; i++) {
-    const pane = document.getElementById(`fp-step-${i}`);
-    if (pane) {
-      if (i === step) pane.classList.remove('hidden');
-      else pane.classList.add('hidden');
-    }
-  }
-  const subtitle = document.getElementById('fp-subtitle');
-  if (subtitle) {
-    if (step === 1) subtitle.textContent = 'Verify your registered email address';
-    else if (step === 2) subtitle.textContent = 'Enter the 6-digit verification code';
-    else if (step === 3) subtitle.textContent = 'Set your new secure password';
-    else if (step === 4) subtitle.textContent = 'Password reset complete';
-  }
-  lucide.createIcons();
-}
-
-function setupOtpInputs() {
-  for (let i = 1; i <= 6; i++) {
-    const input = document.getElementById(`otp-${i}`);
-    if (!input) continue;
-
-    input.addEventListener('input', (e) => {
-      const val = e.target.value;
-      if (val.length === 1 && i < 6) {
-        const next = document.getElementById(`otp-${i + 1}`);
-        if (next) next.focus();
-      }
-    });
-
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !e.target.value && i > 1) {
-        const prev = document.getElementById(`otp-${i - 1}`);
-        if (prev) {
-          prev.focus();
-          prev.value = '';
-        }
-      }
-    });
-
-    input.addEventListener('paste', (e) => {
-      e.preventDefault();
-      const pasted = (e.clipboardData || window.clipboardData).getData('text').trim();
-      if (/^\d{6}$/.test(pasted)) {
-        for (let j = 1; j <= 6; j++) {
-          const field = document.getElementById(`otp-${j}`);
-          if (field) field.value = pasted.charAt(j - 1);
-        }
-        const last = document.getElementById('otp-6');
-        if (last) last.focus();
-      }
-    });
-  }
-}
-
-function startOtpCountdown() {
-  if (state.otpState.timerInterval) {
-    clearInterval(state.otpState.timerInterval);
-  }
-  state.otpState.remainingSeconds = 60;
-  const countEl = document.getElementById('otp-timer-count');
-  const timerText = document.getElementById('otp-timer-text');
-  const resendBtn = document.getElementById('btn-resend-otp');
-  
-  if (timerText) timerText.classList.remove('hidden');
-  if (resendBtn) resendBtn.classList.add('hidden');
-
-  state.otpState.timerInterval = setInterval(() => {
-    state.otpState.remainingSeconds--;
-    if (countEl) countEl.textContent = state.otpState.remainingSeconds;
-    
-    if (state.otpState.remainingSeconds <= 0) {
-      clearInterval(state.otpState.timerInterval);
-      state.otpState.timerInterval = null;
-      if (timerText) timerText.classList.add('hidden');
-      if (resendBtn) resendBtn.classList.remove('hidden');
-    }
-  }, 1000);
-}
-
-async function handleSendOtp(e) {
+function handleSaveGoalDeposit(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-fp-send-otp');
-  const emailInput = document.getElementById('fp-email');
-  const email = emailInput.value.trim().toLowerCase();
+  const id = document.getElementById('deposit-goal-id').value;
+  const amt = parseFloat(document.getElementById('deposit-goal-amount').value);
 
-  setButtonLoading(btn, true, 'Sending Code...');
+  if (!amt || amt <= 0) return;
 
-  try {
-    const res = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      state.otpState.email = email;
-      document.getElementById('fp-target-email').textContent = email;
-      
-      // If dev OTP provided for testing preview
-      const banner = document.getElementById('fp-dev-otp-banner');
-      const codePreview = document.getElementById('fp-dev-otp-code');
-      if (data.devOtp && banner && codePreview) {
-        codePreview.textContent = data.devOtp;
-        banner.classList.remove('hidden');
-      } else if (banner) {
-        banner.classList.add('hidden');
-      }
-
-      startOtpCountdown();
-      fpGoToStep(2);
-      const firstDigit = document.getElementById('otp-1');
-      if (firstDigit) {
-        firstDigit.focus();
-        firstDigit.value = '';
-      }
-      getToast().fire({ icon: 'success', title: data.message });
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Account Not Found',
-        text: data.error || 'Could not dispatch OTP code.',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
-  } catch (err) {
-    console.error('Send OTP error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<span>Send OTP Code</span> <i data-lucide="arrow-right"></i>');
-    lucide.createIcons();
+  const goals = loadSavedGoals();
+  const goal = goals.find(g => g.id === id);
+  if (goal) {
+    goal.saved += amt;
+    saveGoals(goals);
+    getToast().fire({ icon: 'success', title: `Added ${formatCurrency(amt)} to ${goal.name}` });
   }
+
+  closeGoalDepositModal();
+  renderGoalsGrid();
 }
 
-async function handleResendOtp() {
-  if (!state.otpState.email) return;
-  const resendBtn = document.getElementById('btn-resend-otp');
-  if (resendBtn) resendBtn.textContent = 'Sending...';
+// ==========================================================================
+// Settings, Theme & Sub-Navigation
+// ==========================================================================
+function switchSettingsPanel(panelName) {
+  document.querySelectorAll('.settings-tab-link').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('[id^="panel-settings-"]').forEach(el => el.classList.add('hidden'));
 
-  try {
-    const res = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: state.otpState.email })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      if (data.devOtp) {
-        const codePreview = document.getElementById('fp-dev-otp-code');
-        if (codePreview) codePreview.textContent = data.devOtp;
-      }
-      startOtpCountdown();
-      getToast().fire({ icon: 'success', title: 'New OTP code dispatched!' });
-    }
-  } catch (err) {
-    console.error('Resend error:', err);
-  } finally {
-    if (resendBtn) resendBtn.textContent = 'Resend Code';
-  }
+  const targetTab = Array.from(document.querySelectorAll('.settings-tab-link')).find(el => {
+    return el.textContent.toLowerCase().includes(panelName);
+  });
+  if (targetTab) targetTab.classList.add('active');
+
+  const targetPanel = document.getElementById(`panel-settings-${panelName}`);
+  if (targetPanel) targetPanel.classList.remove('hidden');
+
+  if (window.lucide) window.lucide.createIcons();
 }
 
-async function handleVerifyOtp(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btn-fp-verify-otp');
-  let otp = '';
-  for (let i = 1; i <= 6; i++) {
-    const val = document.getElementById(`otp-${i}`).value;
-    otp += val;
+function setAppTheme(theme, updateState = true) {
+  state.theme = theme;
+  if (updateState) {
+    localStorage.setItem('aura_theme', theme);
   }
 
-  if (otp.length !== 6) {
-    getToast().fire({ icon: 'warning', title: 'Please enter all 6 digits' });
-    return;
+  if (theme === 'dark') {
+    document.body.className = 'dark-theme';
+  } else if (theme === 'light') {
+    document.body.className = 'light-theme';
+  } else if (theme === 'system') {
+    const isSysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.body.className = isSysDark ? 'dark-theme' : 'light-theme';
   }
 
-  setButtonLoading(btn, true, 'Verifying...');
+  // Highlight active theme card in settings
+  document.querySelectorAll('.theme-card-option').forEach(el => el.classList.remove('active'));
+  const card = document.getElementById(`theme-opt-${theme}`);
+  if (card) card.classList.add('active');
 
-  try {
-    const res = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: state.otpState.email, otp })
-    });
-    const data = await res.json();
+  // Update theme toggle icons
+  const iconDesk = document.getElementById('theme-icon-desktop');
+  const iconMob = document.getElementById('theme-icon-mobile');
+  const isDarkNow = document.body.classList.contains('dark-theme');
+  const iconName = isDarkNow ? 'sun' : 'moon';
 
-    if (res.ok) {
-      state.otpState.verifiedOtp = otp;
-      fpGoToStep(3);
-      getToast().fire({ icon: 'success', title: 'OTP Code Verified!' });
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Verification Failed',
-        text: data.error || 'Invalid or expired OTP code.',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
-  } catch (err) {
-    console.error('Verify OTP error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<span>Verify OTP</span> <i data-lucide="check-circle-2"></i>');
-    lucide.createIcons();
-  }
+  if (iconDesk) iconDesk.setAttribute('data-lucide', iconName);
+  if (iconMob) iconMob.setAttribute('data-lucide', iconName);
+
+  // Re-render open charts with new palette
+  if (state.charts.dashboardOverview) renderDashboardOverviewChart(state.chartPeriod);
+  if (state.charts.dashboardCategories) renderDashboardCategoriesChart();
+  if (state.activeView === 'analytics') renderCharts();
+
+  if (window.lucide) window.lucide.createIcons();
 }
 
-async function handleResetPassword(e) {
-  e.preventDefault();
-  const btn = document.getElementById('btn-fp-reset-pwd');
-  const newPassword = document.getElementById('fp-new-password').value;
-  const confirmPassword = document.getElementById('fp-confirm-password').value;
-
-  if (newPassword !== confirmPassword) {
-    getToast().fire({ icon: 'error', title: 'Passwords do not match' });
-    return;
-  }
-
-  setButtonLoading(btn, true, 'Updating Password...');
-
-  try {
-    const res = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: state.otpState.email,
-        otp: state.otpState.verifiedOtp,
-        newPassword
-      })
-    });
-    const data = await res.json();
-
-    if (res.ok) {
-      fpGoToStep(4);
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Reset Failed',
-        text: data.error || 'Could not reset password.',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
-  } catch (err) {
-    console.error('Reset password error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<span>Reset & Sign In</span> <i data-lucide="check"></i>');
-    lucide.createIcons();
-  }
-}
-
-function finishForgotPassword() {
-  closeForgotPasswordModal();
-  switchAuthTab('login');
-}
-
-function checkPasswordStrength(val, targetId) {
-  const bar = document.getElementById(targetId);
-  if (!bar) return;
-  if (!val) {
-    bar.className = 'password-strength-bar';
-    return;
-  }
-  let strength = 0;
-  if (val.length >= 6) strength++;
-  if (/[A-Z]/.test(val) && /[0-9]/.test(val)) strength++;
-  if (/[^A-Za-z0-9]/.test(val) && val.length >= 8) strength++;
-
-  if (strength <= 1) {
-    bar.className = 'password-strength-bar weak';
-  } else if (strength === 2) {
-    bar.className = 'password-strength-bar medium';
-  } else {
-    bar.className = 'password-strength-bar strong';
-  }
-}
-
-// ==========================================
-// Modern App Profile Dashboard Handlers
-// ==========================================
-function switchProfileTab(tab) {
-  document.querySelectorAll('.profile-tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('.profile-tab-content').forEach(content => content.classList.add('hidden'));
-
-  const activeBtn = document.getElementById(`ptab-${tab}`);
-  const activePane = document.getElementById(`profile-pane-${tab}`);
-  if (activeBtn) activeBtn.classList.add('active');
-  if (activePane) activePane.classList.remove('hidden');
-  lucide.createIcons();
-}
-
-function populateProfileDashboard(user) {
-  if (!user) return;
-
-  const displayName = user.name || user.username;
-  const initials = displayName.substring(0, 2).toUpperCase();
-
-  // Hero Card
-  document.getElementById('profile-hero-name').textContent = displayName;
-  document.getElementById('profile-hero-handle').textContent = `@${user.username}`;
-  document.getElementById('profile-hero-email').textContent = user.email;
-  renderAllAvatars(user);
-  
-  const authBadge = document.getElementById('profile-auth-badge');
-  if (authBadge) {
-    authBadge.textContent = user.auth_provider === 'google' ? 'Google Account' : 'Aura Secure';
-  }
-
-  const joinedEl = document.getElementById('profile-hero-joined');
-  if (joinedEl && user.created_at) {
-    joinedEl.textContent = new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  }
-
-  // Quick Stats Strip
-  document.getElementById('profile-stat-tx-count').textContent = state.transactions.length;
-  document.getElementById('profile-stat-budget-count').textContent = state.budgets.length;
-  document.getElementById('profile-stat-currency').textContent = `${getCurrencySymbol()} ${user.currency || 'INR'}`;
-
-  // Tab 1: Info Form
-  const nameInput = document.getElementById('profile-name');
-  if (nameInput) nameInput.value = user.name || '';
-  const usernameInput = document.getElementById('profile-username');
-  if (usernameInput) usernameInput.value = user.username || '';
-  const emailInput = document.getElementById('profile-email');
-  if (emailInput) emailInput.value = user.email || '';
-  const phoneInput = document.getElementById('profile-phone');
-  if (phoneInput) phoneInput.value = user.phone || '';
-  const bioInput = document.getElementById('profile-bio');
-  if (bioInput) bioInput.value = user.bio || '';
-
-  // Tab 2: Preferences Form
-  const currSelect = document.getElementById('profile-currency');
-  if (currSelect) currSelect.value = user.currency || 'INR';
-  const themeSelect = document.getElementById('profile-theme-select');
-  if (themeSelect) themeSelect.value = state.theme;
-
-  lucide.createIcons();
+function toggleTheme() {
+  const current = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  setAppTheme(next);
 }
 
 async function handleUpdateProfileInfo(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-save-profile-info');
-  const name = document.getElementById('profile-name').value;
-  const username = document.getElementById('profile-username').value;
-  const email = document.getElementById('profile-email').value;
-  const phone = document.getElementById('profile-phone').value;
-  const bio = document.getElementById('profile-bio').value;
-
-  setButtonLoading(btn, true, 'Saving...');
+  const name = document.getElementById('profile-name').value.trim();
+  const username = document.getElementById('profile-username').value.trim();
+  const phone = document.getElementById('profile-phone').value.trim();
+  const bio = document.getElementById('profile-bio').value.trim();
 
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, username, email, phone, bio })
+      body: JSON.stringify({ name, username, phone, bio })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update profile');
 
-    if (res.ok) {
-      state.user = data.user;
-      populateProfileDashboard(data.user);
-      document.getElementById('username-display').textContent = data.user.name || data.user.username;
-      getToast().fire({ icon: 'success', title: 'Profile updated successfully!' });
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Update Failed',
-        text: data.error || 'Could not update profile',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
+    state.user = data.user;
+    renderAllAvatars(data.user);
+    getToast().fire({ icon: 'success', title: 'Profile updated' });
   } catch (err) {
-    console.error('Update profile error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<i data-lucide="check"></i> <span>Save Changes</span>');
-    lucide.createIcons();
+    getToast().fire({ icon: 'error', title: err.message });
   }
-}
-
-function previewCurrencyChange(code) {
-  state.currency = code;
-  state.currencySymbol = getCurrencySymbol();
-  document.getElementById('profile-stat-currency').textContent = `${getCurrencySymbol()} ${code}`;
-  document.querySelectorAll('.currency-prefix').forEach(el => el.textContent = getCurrencySymbol());
-  const modalAmtLabel = document.querySelector('label[for="modal-tx-amount"]');
-  if (modalAmtLabel) modalAmtLabel.textContent = `Amount (${getCurrencySymbol()})`;
 }
 
 async function handleUpdatePreferences(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-save-profile-prefs');
   const currency = document.getElementById('profile-currency').value;
-  
-  setButtonLoading(btn, true, 'Saving...');
 
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        currency,
-        username: state.user.username,
-        email: state.user.email
-      })
+      body: JSON.stringify({ currency })
     });
     const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to update currency');
 
-    if (res.ok) {
-      state.user = data.user;
-      state.currency = currency;
-      updateUI();
-      getToast().fire({ icon: 'success', title: `Preferences saved! Currency set to ${currency}.` });
-    }
+    state.currency = currency;
+    state.user.currency = currency;
+    getToast().fire({ icon: 'success', title: `Currency updated to ${currency}` });
+    updateUI();
   } catch (err) {
-    console.error('Save preferences error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<i data-lucide="check"></i> <span>Save Preferences</span>');
-    lucide.createIcons();
+    getToast().fire({ icon: 'error', title: err.message });
   }
 }
 
-function applyThemePreference(theme) {
-  if (theme === 'dark') {
-    document.body.className = 'dark-theme';
-    state.theme = 'dark';
-    localStorage.setItem('theme', 'dark');
-  } else {
-    document.body.className = 'light-theme';
-    state.theme = 'light';
-    localStorage.setItem('theme', 'light');
-  }
-  updateThemeIcons();
+function previewCurrencyChange(curr) {
+  state.currency = curr;
+  updateUI();
 }
 
 async function handleUpdatePassword(e) {
   e.preventDefault();
-  const btn = document.getElementById('btn-save-profile-pwd');
   const newPassword = document.getElementById('profile-new-password').value;
   const confirmPassword = document.getElementById('profile-confirm-password').value;
 
   if (newPassword !== confirmPassword) {
-    getToast().fire({ icon: 'error', title: 'Passwords do not match' });
+    getToast().fire({ icon: 'warning', title: 'Passwords do not match' });
     return;
   }
-
-  setButtonLoading(btn, true, 'Updating...');
 
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        password: newPassword,
-        username: state.user.username,
-        email: state.user.email
-      })
+      body: JSON.stringify({ new_password: newPassword })
     });
-    const data = await res.json();
-
-    if (res.ok) {
-      document.getElementById('profile-new-password').value = '';
-      document.getElementById('profile-confirm-password').value = '';
-      getToast().fire({ icon: 'success', title: 'Password updated successfully!' });
-    } else {
-      const sw = getSwalTheme();
-      Swal.fire({
-        icon: 'error',
-        title: 'Password Update Failed',
-        text: data.error || 'Server error',
-        background: sw.background,
-        color: sw.color,
-        confirmButtonColor: sw.confirmButtonColor
-      });
-    }
+    if (!res.ok) throw new Error('Password update failed');
+    getToast().fire({ icon: 'success', title: 'Password successfully updated' });
+    document.getElementById('profile-new-password').value = '';
+    document.getElementById('profile-confirm-password').value = '';
   } catch (err) {
-    console.error('Password change error:', err);
-  } finally {
-    setButtonLoading(btn, false, '<i data-lucide="key"></i> <span>Update Password</span>');
-    lucide.createIcons();
+    getToast().fire({ icon: 'error', title: err.message });
   }
 }
 
-// Data Export & Backup Handlers
+// Data Export & Import
 async function handleExportData() {
-  try {
-    const res = await fetch('/api/user/data/export');
-    const data = await res.json();
-    if (res.ok) {
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Aura_Finance_Backup_${new Date().toISOString().split('T')[0]}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      getToast().fire({ icon: 'success', title: 'Backup downloaded successfully!' });
-    }
-  } catch (err) {
-    console.error('Data export error:', err);
-  }
+  window.location.href = '/api/user/data/export';
+  getToast().fire({ icon: 'success', title: 'Downloading backup...' });
 }
 
 async function handleFileSelected(e) {
@@ -3108,22 +2037,13 @@ async function handleFileSelected(e) {
       const res = await fetch('/api/user/data/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactions: parsed.transactions || [],
-          budgets: parsed.budgets || []
-        })
+        body: JSON.stringify(parsed)
       });
-      const data = await res.json();
-      if (res.ok) {
-        getToast().fire({ icon: 'success', title: data.message });
-        await fetchData();
-      } else {
-        const sw = getSwalTheme();
-        Swal.fire({ icon: 'error', title: 'Import Failed', text: data.error, background: sw.background, color: sw.color });
-      }
+      if (!res.ok) throw new Error('Import failed');
+      getToast().fire({ icon: 'success', title: 'Data restored successfully' });
+      await fetchData();
     } catch (err) {
-      const sw = getSwalTheme();
-      Swal.fire({ icon: 'error', title: 'Invalid JSON File', text: err.message, background: sw.background, color: sw.color });
+      getToast().fire({ icon: 'error', title: 'Invalid backup file' });
     }
   };
   reader.readAsText(file);
@@ -3131,69 +2051,35 @@ async function handleFileSelected(e) {
 
 async function handleClearAllTransactions() {
   const sw = getSwalTheme();
-  const confirmResult = await Swal.fire({
-    title: 'Clear All Personal Transactions?',
-    text: 'This will irreversibly delete all transactions in your ledger. Your budgets and profile will remain intact.',
+  const result = await Swal.fire({
+    title: 'Wipe all records?',
+    text: 'All transactions and budget configurations will be permanently cleared.',
     icon: 'warning',
     showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonColor: sw.cancelButtonColor,
     confirmButtonText: 'Yes, clear all',
+    cancelButtonText: 'Cancel',
     background: sw.background,
-    color: sw.color
+    color: sw.color,
+    confirmButtonColor: '#F43F5E'
   });
 
-  if (confirmResult.isConfirmed) {
+  if (result.isConfirmed) {
     try {
-      const res = await fetch('/api/user/data/clear', { method: 'DELETE' });
-      const data = await res.json();
-      if (res.ok) {
-        getToast().fire({ icon: 'success', title: data.message });
-        await fetchData();
-      }
+      await fetch('/api/user/data/clear', { method: 'DELETE' });
+      getToast().fire({ icon: 'success', title: 'All records cleared' });
+      await fetchData();
     } catch (err) {
-      console.error('Clear transactions error:', err);
+      getToast().fire({ icon: 'error', title: 'Reset failed' });
     }
   }
 }
 
-// Avatar Picker & Personal Photo Management
-const AVATAR_PRESETS = [
-  '💎', '🚀', '🏦', '🪙', '📈', '🦊', '⚡', '👑', '🦁', '🎯', '🍀', '🛡️'
-];
-
+// ==========================================================================
+// Avatar & Camera/Gallery Upload (No emojis)
+// ==========================================================================
 function openAvatarModal() {
   const modal = document.getElementById('avatar-modal');
-  const grid = document.getElementById('avatar-grid-list');
-  const previewArea = document.getElementById('avatar-custom-preview-area');
-  const previewImg = document.getElementById('avatar-preview-img');
-  if (!modal) return;
-
-  // Show custom preview if user currently has an image avatar
-  if (state.user && isImageAvatar(state.user.avatar)) {
-    if (previewArea && previewImg) {
-      previewImg.src = state.user.avatar;
-      previewArea.classList.remove('hidden');
-    }
-  } else {
-    if (previewArea) previewArea.classList.add('hidden');
-  }
-
-  // Populate emoji presets
-  if (grid) {
-    grid.innerHTML = '';
-    AVATAR_PRESETS.forEach(emoji => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = `avatar-preset-btn ${state.user && state.user.avatar === emoji ? 'selected' : ''}`;
-      btn.textContent = emoji;
-      btn.onclick = () => selectAvatarPreset(emoji);
-      grid.appendChild(btn);
-    });
-  }
-
-  modal.classList.remove('hidden');
-  lucide.createIcons();
+  if (modal) modal.classList.remove('hidden');
 }
 
 function closeAvatarModal() {
@@ -3201,154 +2087,462 @@ function closeAvatarModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-async function handleAvatarFileChosen(event) {
-  const file = event.target.files && event.target.files[0];
-  if (!file) return;
+function populateAvatarPresets() {
+  const grid = document.getElementById('avatar-grid-list');
+  if (!grid) return;
 
-  if (!file.type.startsWith('image/')) {
-    const sw = getSwalTheme();
-    Swal.fire({
-      icon: 'warning',
-      title: 'Invalid Image',
-      text: 'Please select an image file (JPEG, PNG, WEBP, etc.)',
-      background: sw.background,
-      color: sw.color
-    });
-    return;
-  }
+  const colorGradients = [
+    'linear-gradient(135deg, #7C3AED, #3B82F6)',
+    'linear-gradient(135deg, #10B981, #059669)',
+    'linear-gradient(135deg, #F59E0B, #D97706)',
+    'linear-gradient(135deg, #EC4899, #8B5CF6)',
+    'linear-gradient(135deg, #3B82F6, #1D4ED8)'
+  ];
 
-  const sw = getSwalTheme();
-  Swal.fire({
-    title: 'Processing Photo...',
-    text: 'Optimizing and setting your profile photo',
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-    background: sw.background,
-    color: sw.color
-  });
-
-  try {
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const img = new Image();
-      img.onload = async () => {
-        // High quality square center-crop & compression via offscreen canvas
-        const canvas = document.createElement('canvas');
-        const maxDim = 400;
-        const width = img.width;
-        const height = img.height;
-        const minDim = Math.min(width, height);
-        const startX = (width - minDim) / 2;
-        const startY = (height - minDim) / 2;
-
-        canvas.width = maxDim;
-        canvas.height = maxDim;
-        const ctx = canvas.getContext('2d');
-        ctx.imageSmoothingQuality = 'high';
-        ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, maxDim, maxDim);
-
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-        // Upload to profile API
-        const res = await fetch('/api/auth/profile', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            avatar: compressedDataUrl,
-            username: state.user.username,
-            email: state.user.email
-          })
-        });
-
-        const data = await res.json();
-        Swal.close();
-
-        if (res.ok) {
-          state.user.avatar = compressedDataUrl;
-          renderAllAvatars(state.user);
-          closeAvatarModal();
-          getToast().fire({ icon: 'success', title: 'Profile photo updated!' });
-        } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Upload Failed',
-            text: data.error || 'Could not update profile photo',
-            background: sw.background,
-            color: sw.color
-          });
-        }
-      };
-      img.onerror = () => {
-        Swal.close();
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Failed to read image file.' });
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  } catch (err) {
-    Swal.close();
-    console.error('Avatar file process failed:', err);
-    Swal.fire({ icon: 'error', title: 'Error', text: err.message });
-  } finally {
-    event.target.value = '';
-  }
+  grid.innerHTML = colorGradients.map((grad, i) => {
+    return `
+      <div onclick="selectColorGradientAvatar('${grad}')" style="width:48px; height:48px; border-radius:50%; background:${grad}; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#FFF; font-weight:700; box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+        ${i + 1}
+      </div>
+    `;
+  }).join('');
 }
 
-async function removePersonalPhoto() {
-  if (!state.user) return;
-  const sw = getSwalTheme();
-  const confirmResult = await Swal.fire({
-    title: 'Remove Profile Photo?',
-    text: 'Your profile avatar will revert back to your initials.',
-    icon: 'question',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, remove',
-    cancelButtonText: 'Cancel',
-    confirmButtonColor: '#ef4444',
-    background: sw.background,
-    color: sw.color
-  });
-
-  if (!confirmResult.isConfirmed) return;
-
+async function selectColorGradientAvatar(grad) {
   try {
     const res = await fetch('/api/auth/profile', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        avatar: '',
-        username: state.user.username,
-        email: state.user.email
-      })
+      body: JSON.stringify({ avatar: grad })
     });
-    if (res.ok) {
-      state.user.avatar = '';
-      renderAllAvatars(state.user);
+    const data = await res.json();
+    state.user = data.user;
+    renderAllAvatars(data.user);
+    closeAvatarModal();
+    getToast().fire({ icon: 'success', title: 'Profile avatar updated' });
+  } catch (err) {}
+}
+
+async function handleAvatarFileChosen(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (event) => {
+    const base64 = event.target.result;
+    try {
+      const res = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: base64 })
+      });
+      const data = await res.json();
+      state.user = data.user;
+      renderAllAvatars(data.user);
       closeAvatarModal();
-      getToast().fire({ icon: 'success', title: 'Photo removed. Initials restored.' });
+      getToast().fire({ icon: 'success', title: 'Photo updated' });
+    } catch (err) {
+      getToast().fire({ icon: 'error', title: 'Failed to upload photo' });
     }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function removePersonalPhoto() {
+  try {
+    const res = await fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar: '' })
+    });
+    const data = await res.json();
+    state.user = data.user;
+    renderAllAvatars(data.user);
+    closeAvatarModal();
+    getToast().fire({ icon: 'info', title: 'Photo removed' });
+  } catch (err) {}
+}
+
+// ==========================================================================
+// Modals: Pro Upgrade & Notifications
+// ==========================================================================
+function openProModal() {
+  const modal = document.getElementById('pro-modal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeProModal() {
+  const modal = document.getElementById('pro-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function handleProUpgradeClick() {
+  closeProModal();
+  Swal.fire({
+    title: 'AuraFinance Pro Activated!',
+    text: 'Welcome to the premium tier. All professional analytics features and receipt intelligence are unlocked.',
+    icon: 'success',
+    confirmButtonColor: '#7C3AED'
+  });
+}
+
+function openNotificationsModal() {
+  const modal = document.getElementById('notifications-modal');
+  const list = document.getElementById('notifications-list');
+  if (!modal || !list) return;
+
+  // Build notifications from actual state
+  const notifications = [
+    { title: 'Statement Ready', desc: 'Your November 2026 transaction ledger is compiled.', icon: 'file-text' }
+  ];
+
+  if (state.summary.totalExpense > 0 && state.summary.totalIncome > 0) {
+    const rate = Math.round(((state.summary.totalIncome - state.summary.totalExpense) / state.summary.totalIncome) * 100);
+    notifications.push({
+      title: 'Savings Milestone',
+      desc: `Your current net savings rate is at ${rate}%.`,
+      icon: 'trending-up'
+    });
+  }
+
+  list.innerHTML = notifications.map(n => `
+    <div style="display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border-subtle);">
+      <div style="width:32px; height:32px; border-radius:var(--radius-sm); background:var(--primary-subtle); color:var(--primary); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i data-lucide="${n.icon}" style="width:16px; height:16px;"></i>
+      </div>
+      <div>
+        <strong style="font-size:0.875rem; display:block;">${n.title}</strong>
+        <span style="font-size:0.775rem; color:var(--text-secondary);">${n.desc}</span>
+      </div>
+    </div>
+  `).join('');
+
+  modal.classList.remove('hidden');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function closeNotificationsModal() {
+  const modal = document.getElementById('notifications-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// Global Search
+function handleGlobalSearch(q) {
+  state.filters.search = q.trim().toLowerCase();
+  if (state.activeView !== 'transactions') {
+    switchView('transactions');
+  }
+  const searchInput = document.getElementById('tx-search');
+  if (searchInput) searchInput.value = q;
+  renderTransactionsList();
+}
+
+// Mobile Menu Toggle
+function toggleMobileMenu() {
+  const dropdown = document.getElementById('mobile-dropdown-menu');
+  if (dropdown) dropdown.classList.toggle('hidden');
+}
+
+// ==========================================================================
+// Google Auth & Password Reset Modals
+// ==========================================================================
+function openGoogleAuthModal() {
+  const modal = document.getElementById('google-auth-modal');
+  renderGoogleAuthAccounts();
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeGoogleAuthModal() {
+  const modal = document.getElementById('google-auth-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function renderGoogleAuthAccounts() {
+  const container = document.getElementById('google-auth-content');
+  if (!container) return;
+
+  const accounts = [
+    { name: 'Jay Rohit', email: 'jayrohit0310@gmail.com' }
+  ];
+
+  container.innerHTML = accounts.map(a => `
+    <div onclick="handleGoogleAccountPick('${escapeHtml(a.name)}', '${escapeHtml(a.email)}')" style="display:flex; align-items:center; justify-content:space-between; padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-md); cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border-color)'">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:#4285F4; color:#FFF; display:flex; align-items:center; justify-content:center; font-weight:700;">
+          ${a.name.substring(0, 1)}
+        </div>
+        <div>
+          <strong style="font-size:0.875rem; display:block;">${escapeHtml(a.name)}</strong>
+          <span style="font-size:0.775rem; color:var(--text-secondary);">${escapeHtml(a.email)}</span>
+        </div>
+      </div>
+      <i data-lucide="chevron-right" style="width:16px; height:16px; color:var(--text-secondary);"></i>
+    </div>
+  `).join('');
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+async function handleGoogleAccountPick(name, email) {
+  try {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, google_id: `g_${email}` })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Google login failed');
+    closeGoogleAuthModal();
+    getToast().fire({ icon: 'success', title: 'Signed in with Google' });
+    handleLoginSuccess(data.user);
   } catch (err) {
-    console.error('Failed to remove photo:', err);
+    getToast().fire({ icon: 'error', title: err.message });
   }
 }
 
-async function selectAvatarPreset(preset) {
-  closeAvatarModal();
-  state.user.avatar = preset;
-  renderAllAvatars(state.user);
+async function handleGoogleFormSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('google-input-email').value.trim();
+  const name = document.getElementById('google-input-name').value.trim();
+  if (email && name) {
+    handleGoogleAccountPick(name, email);
+  }
+}
+
+// Password Reset OTP
+function openForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  state.otpState.targetStep = 1;
+  document.getElementById('fp-step-1').classList.remove('hidden');
+  document.getElementById('fp-step-2').classList.add('hidden');
+  document.getElementById('fp-step-3').classList.add('hidden');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeForgotPasswordModal() {
+  const modal = document.getElementById('forgot-password-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setupOtpInputs() {
+  for (let i = 1; i <= 6; i++) {
+    const input = document.getElementById(`otp-${i}`);
+    if (input) {
+      input.addEventListener('input', (e) => {
+        if (e.target.value.length === 1 && i < 6) {
+          const next = document.getElementById(`otp-${i + 1}`);
+          if (next) next.focus();
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && i > 1) {
+          const prev = document.getElementById(`otp-${i - 1}`);
+          if (prev) prev.focus();
+        }
+      });
+    }
+  }
+}
+
+async function handleSendOtp() {
+  const email = document.getElementById('fp-email').value.trim();
+  if (!email) return;
+
+  state.otpState.email = email;
+  document.getElementById('fp-target-email').textContent = email;
 
   try {
-    await fetch('/api/auth/profile', {
-      method: 'PUT',
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send OTP');
+
+    if (data.devOtp) {
+      const banner = document.getElementById('fp-dev-otp-banner');
+      const code = document.getElementById('fp-dev-otp-code');
+      if (banner && code) {
+        banner.classList.remove('hidden');
+        code.textContent = data.devOtp;
+      }
+    }
+
+    document.getElementById('fp-step-1').classList.add('hidden');
+    document.getElementById('fp-step-2').classList.remove('hidden');
+    startOtpCountdown();
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: err.message });
+  }
+}
+
+function startOtpCountdown() {
+  state.otpState.remainingSeconds = 60;
+  const countEl = document.getElementById('otp-timer-count');
+  const resendBtn = document.getElementById('btn-resend-otp');
+
+  if (resendBtn) resendBtn.disabled = true;
+
+  clearInterval(state.otpState.timerInterval);
+  state.otpState.timerInterval = setInterval(() => {
+    state.otpState.remainingSeconds--;
+    if (countEl) countEl.textContent = state.otpState.remainingSeconds;
+
+    if (state.otpState.remainingSeconds <= 0) {
+      clearInterval(state.otpState.timerInterval);
+      if (resendBtn) resendBtn.disabled = false;
+    }
+  }, 1000);
+}
+
+function handleResendOtp() {
+  handleSendOtp();
+}
+
+async function handleVerifyOtp() {
+  let otp = '';
+  for (let i = 1; i <= 6; i++) {
+    const input = document.getElementById(`otp-${i}`);
+    if (input) otp += input.value;
+  }
+
+  if (otp.length < 6) {
+    getToast().fire({ icon: 'warning', title: 'Enter the complete 6-digit code' });
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: state.otpState.email, otp })
+    });
+    if (!res.ok) throw new Error('Invalid code');
+
+    document.getElementById('fp-step-2').classList.add('hidden');
+    document.getElementById('fp-step-3').classList.remove('hidden');
+  } catch (err) {
+    getToast().fire({ icon: 'error', title: err.message });
+  }
+}
+
+async function handleResetPassword() {
+  let otp = '';
+  for (let i = 1; i <= 6; i++) {
+    const input = document.getElementById(`otp-${i}`);
+    if (input) otp += input.value;
+  }
+  const newPassword = document.getElementById('fp-new-password').value;
+  const confirmPassword = document.getElementById('fp-confirm-password').value;
+
+  if (newPassword !== confirmPassword) {
+    getToast().fire({ icon: 'warning', title: 'Passwords do not match' });
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        avatar: preset,
-        username: state.user.username,
-        email: state.user.email
+        email: state.otpState.email,
+        otp,
+        new_password: newPassword
       })
     });
-    getToast().fire({ icon: 'success', title: 'Avatar icon updated!' });
+    if (!res.ok) throw new Error('Reset failed');
+
+    closeForgotPasswordModal();
+    getToast().fire({ icon: 'success', title: 'Password updated! Please log in.' });
   } catch (err) {
-    console.error('Avatar update error:', err);
+    getToast().fire({ icon: 'error', title: err.message });
   }
+}
+
+// ==========================================================================
+// Reports Export (PDF & Excel)
+// ==========================================================================
+function exportReport(format) {
+  const month = state.selectedMonth || getActiveMonth();
+  const txs = state.transactions.filter(t => t.date && t.date.startsWith(month));
+
+  if (txs.length === 0) {
+    getToast().fire({ icon: 'info', title: 'No transactions found for export' });
+    return;
+  }
+
+  const filename = `AuraFinance_${month}_Statement`;
+
+  if (format === 'excel') {
+    if (typeof XLSX === 'undefined') {
+      getToast().fire({ icon: 'error', title: 'Excel export library not available' });
+      return;
+    }
+
+    const rows = [['Date', 'Type', 'Category', 'Description', 'Payment Method', 'Amount (INR)']];
+    txs.forEach(t => {
+      rows.push([
+        t.date,
+        t.type.toUpperCase(),
+        t.category,
+        t.description || '',
+        t.payment_method || 'UPI',
+        t.type === 'expense' ? -t.amount : t.amount
+      ]);
+    });
+
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Transactions');
+    XLSX.writeFile(workbook, `${filename}.xlsx`);
+    getToast().fire({ icon: 'success', title: 'Excel spreadsheet downloaded' });
+
+  } else if (format === 'pdf') {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      getToast().fire({ icon: 'error', title: 'PDF export library not available' });
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    doc.setFillColor(124, 58, 237);
+    doc.rect(0, 0, 210, 36, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('AuraFinance', 14, 18);
+    doc.setFontSize(10);
+    doc.text(`Monthly Financial Statement • ${month}`, 14, 28);
+
+    const tableRows = txs.map(t => [
+      t.date,
+      t.type.toUpperCase(),
+      t.category,
+      t.description || '-',
+      `${t.type === 'expense' ? '-' : '+'}${t.amount.toFixed(2)}`
+    ]);
+
+    doc.autoTable({
+      head: [['Date', 'Type', 'Category', 'Description', 'Amount']],
+      body: tableRows,
+      startY: 44,
+      theme: 'grid',
+      headStyles: { fillColor: [124, 58, 237] }
+    });
+
+    doc.save(`${filename}.pdf`);
+    getToast().fire({ icon: 'success', title: 'PDF Statement downloaded' });
+  }
+}
+
+// Utility: Format Date
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length < 3) return dateStr;
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const m = parseInt(parts[1], 10) - 1;
+  return `${monthNames[m]} ${parseInt(parts[2], 10)}, ${parts[0]}`;
 }

@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-  <title>Aura Finance | Personal Expense Tracker</title>
+  <title>AuraFinance | Modern Wealth & Expense Intelligence</title>
   
   <!-- Modern Premium Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Custom Styling System -->
   <link rel="stylesheet" href="style.css">
@@ -26,194 +26,176 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   
+  <!-- SheetJS CDN for Excel Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
   <!-- PWA & Mobile Optimization -->
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" type="image/png" href="/favicon.png">
   <link rel="shortcut icon" href="/favicon.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#7C3AED">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Aura Finance">
-
-  <!-- SheetJS CDN for Excel Export -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <meta name="apple-mobile-web-app-title" content="AuraFinance">
 </head>
 <body class="light-theme">
 
   <!-- ==========================================
        TOP MOBILE HEADER BAR
        ========================================== -->
-  <header id="mobile-header" class="mobile-header">
-    <div class="mobile-header-brand">
-      <img src="/logo.png" alt="Aura Finance" class="app-brand-logo-img small">
-      <span class="logo-text">Aura Finance</span>
+  <header id="mobile-header" class="mobile-top-header">
+    <div class="sidebar-logo" onclick="switchView('dashboard')">
+      <img src="/logo.png" alt="AuraFinance" class="app-brand-logo-img small">
+      <span class="logo-text">Aura<span>Finance</span></span>
     </div>
-    <div class="mobile-header-actions">
+    <div class="header-actions-right">
+      <!-- Theme Toggle -->
+      <button class="btn-icon-nav" id="mobile-theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <i data-lucide="sun" id="theme-icon-mobile"></i>
+      </button>
+
       <!-- Install App Pill Button (When available) -->
-      <button id="mobile-btn-install" class="btn-install-app-pill hidden" onclick="triggerPwaInstall()" title="Install App">
+      <button id="mobile-btn-install" class="btn btn-sm btn-primary hidden" onclick="triggerPwaInstall()" title="Install App">
         <i data-lucide="download"></i>
         <span>Install</span>
       </button>
 
-      <!-- User profile initials/avatar dropdown -->
-      <div class="mobile-user-avatar" onclick="toggleMobileMenu()">
-        <span id="mobile-user-initials">D</span>
-        <div id="mobile-dropdown-menu" class="mobile-dropdown hidden">
-          <div class="dropdown-user-info">
-            <strong id="mobile-dropdown-name">Demo User</strong>
-            <span id="mobile-dropdown-status">Active</span>
-          </div>
-          <button onclick="switchView('profile'); toggleMobileMenu();" class="dropdown-profile-btn">
-            <i data-lucide="user"></i>
-            <span>Profile Settings</span>
-          </button>
-          <button onclick="toggleTheme(); toggleMobileMenu();" class="dropdown-profile-btn">
-            <i data-lucide="moon" id="dropdown-theme-icon"></i>
-            <span id="dropdown-theme-text">Dark / Light Mode</span>
-          </button>
-          <button onclick="handleLogout()" class="dropdown-logout-btn">
-            <i data-lucide="log-out"></i>
-            <span>Logout</span>
-          </button>
+      <!-- User Profile Initials / Avatar Button -->
+      <div class="user-profile-badge" onclick="toggleMobileMenu()">
+        <div class="avatar-circle-sm" id="mobile-user-avatar">
+          <span id="mobile-user-initials">JR</span>
         </div>
       </div>
+    </div>
+
+    <!-- Mobile Dropdown Menu -->
+    <div id="mobile-dropdown-menu" class="mobile-dropdown hidden">
+      <div class="dropdown-user-info">
+        <strong id="mobile-dropdown-name">Jay Rohit</strong>
+        <span id="mobile-dropdown-status">Active Account</span>
+      </div>
+      <button onclick="switchView('profile'); toggleMobileMenu();" class="dropdown-profile-btn">
+        <i data-lucide="user"></i>
+        <span>Profile Settings</span>
+      </button>
+      <button onclick="toggleTheme(); toggleMobileMenu();" class="dropdown-profile-btn">
+        <i data-lucide="moon" id="dropdown-theme-icon"></i>
+        <span id="dropdown-theme-text">Switch Theme</span>
+      </button>
+      <button onclick="handleLogout()" class="dropdown-logout-btn">
+        <i data-lucide="log-out"></i>
+        <span>Logout</span>
+      </button>
     </div>
   </header>
 
   <!-- ==========================================
-       AUTHENTICATION STATE
+       AUTHENTICATION STATE (LOGIN / REGISTER)
        ========================================== -->
   <div id="auth-container" class="auth-wrapper">
-    <div class="auth-bg-blobs">
-      <div class="blob blob-1"></div>
-      <div class="blob blob-2"></div>
-    </div>
-    
-    <div class="auth-card-wrapper">
-      <div class="auth-brand">
-        <div class="brand-logo">
-          <img src="/logo.png" alt="Aura Finance Logo" class="app-brand-logo-img large">
-        </div>
-        <h1>Aura Finance</h1>
+    <div class="auth-card-box">
+      <div class="auth-brand-center">
+        <img src="/logo.png" alt="AuraFinance Logo" class="app-brand-logo-img large">
+        <h1>AuraFinance</h1>
         <p>Smart, elegant wealth & expense intelligence.</p>
       </div>
 
-      <div class="auth-card">
-        <div class="auth-tabs">
-          <button id="tab-login" class="auth-tab active" onclick="switchAuthTab('login')">Login</button>
-          <button id="tab-register" class="auth-tab" onclick="switchAuthTab('register')">Register</button>
+      <div class="auth-tabs-toggle">
+        <button id="tab-login" class="auth-tab-btn active" onclick="switchAuthTab('login')">Login</button>
+        <button id="tab-register" class="auth-tab-btn" onclick="switchAuthTab('register')">Register</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="handleLogin(event)">
+        <button type="button" class="btn btn-secondary btn-block" style="width:100%; margin-bottom:12px;" onclick="openGoogleAuthModal()">
+          <svg class="google-svg" viewBox="0 0 24 24" width="18" height="18" style="margin-right:8px;">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+
+        <div class="auth-divider">
+          <span>or sign in with password</span>
         </div>
 
-        <!-- Login Form -->
-        <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
-          <button type="button" class="btn btn-google btn-block" onclick="openGoogleAuthModal()">
-            <svg class="google-svg" viewBox="0 0 24 24" width="20" height="20">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-            </svg>
-            <span>Continue with Google</span>
-          </button>
-
-          <div class="auth-divider">
-            <span>or sign in with password</span>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label for="login-credential">Username or Email</label>
+          <input type="text" id="login-credential" class="form-control" placeholder="Enter username or email" required>
+        </div>
+        
+        <div class="form-group" style="margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label for="login-password">Password</label>
+            <button type="button" class="btn-link" style="font-size:0.8rem;" onclick="openForgotPasswordModal()">Forgot Password?</button>
           </div>
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required>
+        </div>
 
-          <div class="input-group">
-            <label for="login-credential">Username or Email</label>
-            <div class="input-wrapper">
-              <i data-lucide="user" class="input-icon"></i>
-              <input type="text" id="login-credential" placeholder="Enter username or email" required>
-            </div>
-          </div>
-          
-          <div class="input-group">
-            <div class="input-header-flex">
-              <label for="login-password">Password</label>
-              <button type="button" class="forgot-link-btn" onclick="openForgotPasswordModal()">Forgot Password?</button>
-            </div>
-            <div class="input-wrapper">
-              <i data-lucide="lock" class="input-icon"></i>
-              <input type="password" id="login-password" placeholder="••••••••" required>
-            </div>
-          </div>
+        <button type="submit" class="btn btn-primary btn-block" style="width:100%; height:44px;" id="btn-login-submit">
+          <span>Sign In</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </form>
 
-          <button type="submit" class="btn btn-primary btn-block" id="btn-login-submit">
-            <span>Sign In</span>
-            <i data-lucide="arrow-right"></i>
-          </button>
-        </form>
+      <!-- Register Form -->
+      <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+        <button type="button" class="btn btn-secondary btn-block" style="width:100%; margin-bottom:12px;" onclick="openGoogleAuthModal()">
+          <svg class="google-svg" viewBox="0 0 24 24" width="18" height="18" style="margin-right:8px;">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Sign up with Google</span>
+        </button>
 
-        <!-- Register Form -->
-        <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
-          <button type="button" class="btn btn-google btn-block" onclick="openGoogleAuthModal()">
-            <svg class="google-svg" viewBox="0 0 24 24" width="20" height="20">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-            </svg>
-            <span>Sign up with Google</span>
-          </button>
+        <div class="auth-divider">
+          <span>or create an account</span>
+        </div>
 
-          <div class="auth-divider">
-            <span>or register with email</span>
-          </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="register-name">Full Name</label>
+          <input type="text" id="register-name" class="form-control" placeholder="e.g. Jay Rohit">
+        </div>
 
-          <div class="input-group">
-            <label for="register-name">Full Name</label>
-            <div class="input-wrapper">
-              <i data-lucide="badge-check" class="input-icon"></i>
-              <input type="text" id="register-name" placeholder="e.g. Alex Morgan">
-            </div>
-          </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="register-username">Username</label>
+          <input type="text" id="register-username" class="form-control" placeholder="Choose a username" required>
+        </div>
 
-          <div class="input-group">
-            <label for="register-username">Username</label>
-            <div class="input-wrapper">
-              <i data-lucide="user" class="input-icon"></i>
-              <input type="text" id="register-username" placeholder="e.g. alexmorgan" required>
-            </div>
-          </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="register-email">Email Address</label>
+          <input type="email" id="register-email" class="form-control" placeholder="name@example.com" required>
+        </div>
 
-          <div class="input-group">
-            <label for="register-email">Email Address</label>
-            <div class="input-wrapper">
-              <i data-lucide="mail" class="input-icon"></i>
-              <input type="email" id="register-email" placeholder="e.g. alex@example.com" required>
-            </div>
-          </div>
-          
-          <div class="input-group">
-            <label for="register-password">Password</label>
-            <div class="input-wrapper">
-              <i data-lucide="lock" class="input-icon"></i>
-              <input type="password" id="register-password" placeholder="At least 6 characters" required minlength="6">
-            </div>
-          </div>
+        <div class="form-group" style="margin-bottom:18px;">
+          <label for="register-password">Password</label>
+          <input type="password" id="register-password" class="form-control" placeholder="Create a secure password" required>
+        </div>
 
-          <button type="submit" class="btn btn-primary btn-block" id="btn-register-submit">
-            <span>Create Account</span>
-            <i data-lucide="user-plus"></i>
-          </button>
-        </form>
-      </div>
+        <button type="submit" class="btn btn-primary btn-block" style="width:100%; height:44px;" id="btn-register-submit">
+          <span>Create Account</span>
+          <i data-lucide="arrow-right"></i>
+        </button>
+      </form>
     </div>
   </div>
 
   <!-- ==========================================
-       MAIN APP SHELL
+       MAIN APP SHELL (DESKTOP & MOBILE)
        ========================================== -->
   <div id="app-container" class="app-layout hidden">
     
     <!-- Desktop Left Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <div class="sidebar-logo">
-          <img src="/logo.png" alt="Aura Finance" class="app-brand-logo-img small">
-          <span class="logo-text">Aura Finance</span>
+        <div class="sidebar-logo" onclick="switchView('dashboard')">
+          <img src="/logo.png" alt="AuraFinance" class="app-brand-logo-img small">
+          <span class="logo-text">Aura<span>Finance</span></span>
         </div>
       </div>
 
@@ -227,7 +209,7 @@
           </li>
           <li>
             <a href="#" id="nav-transactions" class="nav-item" onclick="switchView('transactions')">
-              <i data-lucide="arrow-left-right"></i>
+              <i data-lucide="receipt"></i>
               <span>Transactions</span>
             </a>
           </li>
@@ -238,45 +220,43 @@
             </a>
           </li>
           <li>
-            <a href="#" id="nav-reports" class="nav-item" onclick="switchView('reports')">
-              <i data-lucide="file-text"></i>
-              <span>Reports</span>
-            </a>
-          </li>
-          <li>
             <a href="#" id="nav-analytics" class="nav-item" onclick="switchView('analytics')">
-              <i data-lucide="trending-up"></i>
+              <i data-lucide="line-chart"></i>
               <span>Analytics</span>
             </a>
           </li>
           <li>
-            <a href="#" id="nav-profile" class="nav-item" onclick="switchView('profile')">
-              <i data-lucide="user"></i>
-              <span>Profile Settings</span>
+            <a href="#" id="nav-categories" class="nav-item" onclick="switchView('categories')">
+              <i data-lucide="layout-grid"></i>
+              <span>Categories</span>
+            </a>
+          </li>
+          <li>
+            <a href="#" id="nav-savings-goals" class="nav-item" onclick="switchView('savings-goals')">
+              <i data-lucide="target"></i>
+              <span>Savings Goals</span>
             </a>
           </li>
         </ul>
       </nav>
 
+      <!-- Sidebar Upgrade to Pro Card -->
+      <div class="sidebar-pro-card">
+        <h4>Upgrade to Pro</h4>
+        <p>Unlock AI scanning, predictive intelligence & deep exports.</p>
+        <button class="btn-pro-upgrade" onclick="openProModal()">
+          <i data-lucide="zap"></i>
+          <span>Upgrade</span>
+        </button>
+      </div>
+
+      <!-- Sidebar Footer -->
       <div class="sidebar-footer">
-        <button id="sidebar-btn-install" class="btn-sidebar-install hidden" onclick="triggerPwaInstall()">
-          <i data-lucide="download"></i>
-          <span>Install Aura App</span>
-        </button>
-        <button onclick="toggleTheme()" class="btn-theme-toggle" id="theme-toggle-desktop">
-          <i data-lucide="sun" id="theme-icon-desktop"></i>
-          <span>Theme Toggle</span>
-        </button>
-        <div class="user-profile-summary">
-          <div class="user-avatar" id="sidebar-user-avatar">
-            <span id="user-initials">D</span>
-          </div>
-          <div class="user-info">
-            <span id="username-display" class="user-name">Demo User</span>
-            <span class="user-status" id="sidebar-user-status">Active</span>
-          </div>
-        </div>
-        <button onclick="handleLogout()" class="btn-logout" title="Sign Out">
+        <a href="#" id="nav-profile" class="nav-item" onclick="switchView('profile')">
+          <i data-lucide="settings"></i>
+          <span>Settings</span>
+        </a>
+        <button onclick="handleLogout()" class="btn-sidebar-logout" title="Sign Out">
           <i data-lucide="log-out"></i>
           <span>Logout</span>
         </button>
@@ -286,36 +266,39 @@
     <!-- Main Content Panel -->
     <main class="main-content">
       
-      <!-- Top header bar -->
+      <!-- Top App Header / Navbar -->
       <header class="app-header">
-        <div class="header-welcome">
-          <h2 id="header-greeting">Welcome back, Demo</h2>
-          <p id="header-date">Wednesday, May 20, 2026</p>
+        <!-- Global Search Bar -->
+        <div class="global-search-wrapper">
+          <i data-lucide="search" class="global-search-icon"></i>
+          <input type="text" id="global-search-input" class="global-search-input" placeholder="Search anything... (⌘ + K)" oninput="handleGlobalSearch(this.value)">
+          <span class="search-shortcut-badge">⌘ K</span>
         </div>
         
-        <div class="header-right-controls">
-          <!-- Month Selector Dropdown -->
-          <div class="month-selector-wrapper" id="month-filter-container">
-            <label for="dashboard-month-select">View Month:</label>
-            <select id="dashboard-month-select" class="header-select" onchange="handleMonthChange()">
-              <!-- Filled Dynamically -->
-            </select>
-          </div>
-          
-          <div class="header-actions">
-            <!-- Global Refresh Button with Loader -->
-            <button class="btn btn-secondary btn-refresh" id="desktop-btn-refresh" onclick="handleManualRefresh()" title="Refresh All Data">
-              <i data-lucide="refresh-cw"></i>
-              <span>Refresh</span>
-            </button>
-            <button class="btn btn-success" onclick="openTransactionModal('expense')">
-              <i data-lucide="plus-circle"></i>
-              <span>Add Expense</span>
-            </button>
-            <button class="btn btn-primary" onclick="openTransactionModal('income')">
-              <i data-lucide="arrow-up-circle"></i>
-              <span>Add Income</span>
-            </button>
+        <!-- Header Right Actions -->
+        <div class="header-actions-right">
+          <!-- Refresh Button -->
+          <button class="btn-icon-nav" id="desktop-btn-refresh" onclick="handleManualRefresh()" title="Refresh All Data">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+
+          <!-- Theme Toggle -->
+          <button class="btn-icon-nav" id="theme-toggle-desktop" onclick="toggleTheme()" title="Toggle Dark/Light Mode">
+            <i data-lucide="sun" id="theme-icon-desktop"></i>
+          </button>
+
+          <!-- Notifications Bell -->
+          <button class="btn-icon-nav" id="btn-notification-top" onclick="openNotificationsModal()" title="Notifications">
+            <i data-lucide="bell"></i>
+            <span class="notification-dot"></span>
+          </button>
+
+          <!-- User Avatar Badge -->
+          <div class="user-profile-badge" onclick="switchView('profile')">
+            <div class="avatar-circle-sm" id="sidebar-user-avatar">
+              <span id="user-initials">JR</span>
+            </div>
+            <span id="username-display" style="font-weight:600; font-size:0.875rem;">Jay Rohit</span>
           </div>
         </div>
       </header>
@@ -328,1098 +311,1152 @@
           <div class="skeleton-card"></div>
           <div class="skeleton-card"></div>
         </div>
-        <div class="skeleton-grid">
-          <div class="skeleton-card large"></div>
-          <div class="skeleton-card small"></div>
-        </div>
       </div>
 
-      <!-- VIEW 1: DASHBOARD -->
-      <section id="view-dashboard" class="content-view">
-        <!-- Metric Cards -->
-        <div class="metrics-grid">
-          <div class="metric-card balance-card">
-            <div class="metric-header">
-              <span>NET BALANCE</span>
-              <div class="metric-icon balance-icon-bg">
-                <i data-lucide="coins"></i>
-              </div>
+      <!-- Main Content Container -->
+      <div class="content-container">
+
+        <!-- ==========================================
+             VIEW 1: DASHBOARD
+             ========================================== -->
+        <section id="view-dashboard" class="content-view">
+          
+          <!-- Page Hero Header -->
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1 id="header-greeting">Good Morning, Jay Rohit!</h1>
+              <p>Here's your financial overview for this month</p>
             </div>
-            <h2 id="metric-balance" class="amount">?0.00</h2>
-            <p class="metric-desc">Available net savings pool</p>
-          </div>
-
-          <div class="metric-card income-card">
-            <div class="metric-header">
-              <span>TOTAL INCOME</span>
-              <div class="metric-icon income-icon-bg">
-                <i data-lucide="trending-up"></i>
-              </div>
-            </div>
-            <h2 id="metric-income" class="amount text-success">?0.00</h2>
-            <p class="metric-desc">Earnings in selected month</p>
-          </div>
-
-          <div class="metric-card expense-card">
-            <div class="metric-header">
-              <span>TOTAL EXPENSES</span>
-              <div class="metric-icon expense-icon-bg">
-                <i data-lucide="trending-down"></i>
-              </div>
-            </div>
-            <h2 id="metric-expense" class="amount text-danger">?0.00</h2>
-            <p class="metric-desc">Outflows in selected month</p>
-          </div>
-
-          <div class="metric-card savings-card">
-            <div class="metric-header">
-              <span>TOTAL SAVINGS</span>
-              <div class="metric-icon savings-icon-bg">
-                <i data-lucide="piggy-bank"></i>
-              </div>
-            </div>
-            <h2 id="metric-savings" class="amount text-primary">?0.00</h2>
-            <p class="metric-desc">Savings rate: <strong id="metric-savings-rate" class="text-primary">0%</strong></p>
-          </div>
-        </div>
-
-        <!-- Dashboard Layout Grid -->
-        <div class="dashboard-grid">
-          <!-- Left Column: Budgets & Warnings -->
-          <div class="dash-column">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>Active Budget Statuses</h3>
-                <button class="btn-text" onclick="switchView('budgets')">Configure Budgets</button>
-              </div>
-              <div id="dashboard-budgets" class="dash-budget-list">
-                <!-- Budgets inserted by JS -->
-                <div class="no-data-msg">
-                  <i data-lucide="pie-chart"></i>
-                  <p>No active category budget limits set.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right Column: Recent Transactions -->
-          <div class="dash-column">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>Recent Transactions</h3>
-                <button class="btn-text" onclick="switchView('transactions')">View All</button>
-              </div>
-              <div class="table-container">
-                <table class="recent-transactions-table">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Date</th>
-                      <th class="text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dashboard-transactions">
-                    <!-- Transactions inserted by JS -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- VIEW 2: TRANSACTIONS (CRUD MANAGEMENT) -->
-      <section id="view-transactions" class="content-view hidden">
-        <div class="content-card">
-          <div class="card-header flex-column-mobile">
-            <h3>Transaction Vault</h3>
-            
-            <div class="filter-controls">
-              <!-- Export Buttons -->
-              <div class="export-actions">
-                <button class="btn btn-secondary btn-sm" onclick="exportReport('csv')" style="padding: 7px 10px; height: 32px;">
-                  <i data-lucide="download"></i> CSV
-                </button>
-                <button class="btn btn-secondary btn-sm" onclick="exportReport('pdf')" style="padding: 7px 10px; height: 32px;">
-                  <i data-lucide="file-text"></i> PDF
-                </button>
-              </div>
-
-              <!-- Text Search -->
-              <div class="search-input">
-                <i data-lucide="search"></i>
-                <input type="text" id="tx-search" placeholder="Search logs..." oninput="applyFilters()">
-              </div>
-              
-              <!-- Flow Type Filter -->
-              <select id="tx-type-filter" onchange="applyFilters()">
-                <option value="all">All Types</option>
-                <option value="income">Incomes Only</option>
-                <option value="expense">Expenses Only</option>
-              </select>
-
-              <!-- Category Filter -->
-              <select id="tx-category-filter" onchange="applyFilters()">
-                <option value="all">All Categories</option>
-                <!-- Filled dynamically -->
-              </select>
-
-              <!-- Date Preset Filter -->
-              <select id="tx-date-filter" onchange="applyFilters()">
-                <option value="all">All Dates</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="thismonth">This Month</option>
-                <option value="lastmonth">Last Month</option>
-              </select>
-
-              <!-- Amount Threshold Filter -->
-              <select id="tx-amount-filter" onchange="applyFilters()">
-                <option value="all">All Amounts</option>
-                <option value="under100">Under ?100</option>
-                <option value="100to500">?100 - ?500</option>
-                <option value="over500">Over ?500</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Transaction List Table with Headers Sortable -->
-          <div class="table-container large-table-container">
-            <table class="main-table">
-              <thead>
-                <tr>
-                  <th onclick="toggleSort('type')" class="sortable-header">Type <i data-lucide="arrow-up-down" class="sort-icon-mini"></i></th>
-                  <th onclick="toggleSort('category')" class="sortable-header">Category <i data-lucide="arrow-up-down" class="sort-icon-mini"></i></th>
-                  <th onclick="toggleSort('description')" class="sortable-header">Description <i data-lucide="arrow-up-down" class="sort-icon-mini"></i></th>
-                  <th onclick="toggleSort('date')" class="sortable-header">Date <i data-lucide="arrow-up-down" class="sort-icon-mini"></i></th>
-                  <th onclick="toggleSort('amount')" class="sortable-header text-right">Amount <i data-lucide="arrow-up-down" class="sort-icon-mini"></i></th>
-                  <th class="text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="transactions-list">
-                <!-- Populated dynamically -->
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Pagination Bar -->
-          <div class="pagination-bar">
-            <div class="pagination-info">
-              Showing <span id="pg-start-idx">0</span> to <span id="pg-end-idx">0</span> of <span id="pg-total-count">0</span> records
-            </div>
-            <div class="pagination-controls">
-              <button class="btn btn-secondary btn-pagination" id="btn-pg-prev" onclick="changePage(-1)">
-                <i data-lucide="chevron-left"></i> Prev
-              </button>
-              <div class="pagination-pages" id="pagination-pages-list"></div>
-              <button class="btn btn-secondary btn-pagination" id="btn-pg-next" onclick="changePage(1)">
-                Next <i data-lucide="chevron-right"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- VIEW 3: BUDGETS (LIMIT CONFIGURATION) -->
-      <section id="view-budgets" class="content-view hidden">
-        <div class="budgets-layout">
-          <!-- Left side: Set Budget Form -->
-          <div class="budget-form-card content-card">
-            <h3>Set Category Budget</h3>
-            <p class="subtitle">Enforce limits to keep control of category-specific expenses.</p>
-            
-            <form id="budget-form" onsubmit="handleSetBudget(event)">
-              <div class="input-group">
-                <label for="budget-category">Expense Category</label>
-                <select id="budget-category" required>
-                  <option value="" disabled selected>Select a category</option>
-                  <option value="Food & Dining">Food & Dining</option>
-                  <option value="Shopping">Shopping</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Utilities">Utilities</option>
-                  <option value="Rent & Housing">Rent & Housing</option>
-                  <option value="Travel">Travel</option>
-                  <option value="Healthcare">Healthcare</option>
-                  <option value="Education">Education</option>
-                  <option value="Miscellaneous">Miscellaneous</option>
+            <div class="page-hero-controls">
+              <!-- Month Selector Pill -->
+              <div class="month-selector-pill" id="month-filter-container">
+                <i data-lucide="calendar"></i>
+                <select id="dashboard-month-select" onchange="handleMonthChange()">
+                  <!-- Filled Dynamically -->
                 </select>
               </div>
 
-              <div class="input-group">
-                <label for="budget-limit">Monthly Limit Amount (?)</label>
-                <div class="input-wrapper">
-                  <span class="currency-prefix">?</span>
-                  <input type="number" id="budget-limit" placeholder="e.g. 500" min="1" step="any" required>
-                </div>
-              </div>
-
-              <button type="submit" class="btn btn-primary btn-block">
-                <i data-lucide="check-circle"></i>
-                <span>Enforce Budget Limit</span>
+              <!-- Quick Action: Add Transaction -->
+              <button class="btn btn-primary" onclick="openTransactionModal('expense')">
+                <i data-lucide="plus"></i>
+                <span>Add Transaction</span>
               </button>
-            </form>
-          </div>
-
-          <!-- Right side: Budget tracking grid -->
-          <div class="budget-display-card content-card">
-            <h3>Budget Overview</h3>
-            <p class="subtitle">Current dynamic allocations and actual spent proportions.</p>
-            
-            <div id="budgets-display-list" class="budgets-card-grid">
-              <!-- Filled Dynamically -->
             </div>
           </div>
-        </div>
-      </section>
 
-      <!-- VIEW 4: REPORTS VIEW (NEW) -->
-      <section id="view-reports" class="content-view hidden">
-        <div class="reports-layout">
-          <!-- Left side: Export control parameters -->
-          <div class="report-form-card content-card">
-            <h3>Generate Financial Report</h3>
-            <p class="subtitle">Compile summary parameters and export formats.</p>
-            
-            <div class="input-group">
-              <label for="report-range">Select Range</label>
-              <select id="report-range" onchange="toggleCustomReportDates()">
-                <option value="thismonth" selected>Current Month</option>
-                <option value="lastmonth">Previous Month</option>
-                <option value="7days">Last 7 Days</option>
-                <option value="30days">Last 30 Days</option>
-                <option value="3months">Last 3 Months</option>
-                <option value="6months">Last 6 Months</option>
-                <option value="year">Last Year</option>
-                <option value="custom">Custom Date Range</option>
-              </select>
-            </div>
-
-            <!-- Custom date parameters inputs hidden by default -->
-            <div id="custom-report-dates" class="input-group hidden">
-              <div class="modal-form-row">
-                <div class="input-group">
-                  <label for="report-start-date">Start Date</label>
-                  <input type="date" id="report-start-date">
+          <!-- 4 Financial Summary Cards -->
+          <div class="summary-cards-grid">
+            <!-- 1. Total Balance -->
+            <div class="summary-card">
+              <div class="summary-card-header">
+                <div class="summary-icon-badge balance">
+                  <i data-lucide="wallet"></i>
                 </div>
-                <div class="input-group">
-                  <label for="report-end-date">End Date</label>
-                  <input type="date" id="report-end-date">
-                </div>
+                <span class="summary-card-title">TOTAL BALANCE</span>
+              </div>
+              <h2 id="metric-balance" class="summary-card-amount">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge positive" id="trend-badge-balance">
+                  <i data-lucide="arrow-up-right"></i> 12%
+                </span>
+                <span>vs last month</span>
               </div>
             </div>
 
-            <button onclick="handleGenerateReport()" class="btn btn-primary btn-block">
-              <i data-lucide="refresh-cw"></i>
-              <span>Compile Report Data</span>
-            </button>
+            <!-- 2. Total Income -->
+            <div class="summary-card">
+              <div class="summary-card-header">
+                <div class="summary-icon-badge income">
+                  <i data-lucide="arrow-down-left"></i>
+                </div>
+                <span class="summary-card-title">TOTAL INCOME</span>
+              </div>
+              <h2 id="metric-income" class="summary-card-amount" style="color:var(--income);">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge positive" id="trend-badge-income">
+                  <i data-lucide="arrow-up-right"></i> 8%
+                </span>
+                <span>vs last month</span>
+              </div>
+            </div>
+
+            <!-- 3. Total Expenses -->
+            <div class="summary-card">
+              <div class="summary-card-header">
+                <div class="summary-icon-badge expense">
+                  <i data-lucide="arrow-up-right"></i>
+                </div>
+                <span class="summary-card-title">TOTAL EXPENSES</span>
+              </div>
+              <h2 id="metric-expense" class="summary-card-amount" style="color:var(--expense);">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge negative" id="trend-badge-expense">
+                  <i data-lucide="arrow-down-right"></i> 5%
+                </span>
+                <span>vs last month</span>
+              </div>
+            </div>
+
+            <!-- 4. Savings -->
+            <div class="summary-card">
+              <div class="summary-card-header">
+                <div class="summary-icon-badge savings">
+                  <i data-lucide="piggy-bank"></i>
+                </div>
+                <span class="summary-card-title">SAVINGS</span>
+              </div>
+              <h2 id="metric-savings" class="summary-card-amount" style="color:var(--primary);">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge positive">
+                  <i data-lucide="arrow-up-right"></i> <strong id="metric-savings-rate">0%</strong>
+                </span>
+                <span>savings rate</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Right side: Report preview details and export items -->
-          <div class="report-display-card content-card">
-            <div class="report-header-preview">
+          <!-- Middle Charts Section (2 Columns) -->
+          <div class="dashboard-middle-grid">
+            <!-- Left: Spending Overview Chart -->
+            <div class="card">
+              <div class="card-header-flex">
+                <h3>Spending Overview</h3>
+                <div style="display:flex; align-items:center; gap:16px;">
+                  <div class="chart-legend-row">
+                    <div class="legend-item">
+                      <span class="legend-dot income"></span>
+                      <span>Income</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-dot expense"></span>
+                      <span>Expenses</span>
+                    </div>
+                  </div>
+                  <div class="chart-controls-pills">
+                    <button class="pill-btn active" id="btn-chart-period-this" onclick="toggleDashboardChartPeriod('this')">This Month</button>
+                    <button class="pill-btn" id="btn-chart-period-last" onclick="toggleDashboardChartPeriod('last')">Last Month</button>
+                  </div>
+                </div>
+              </div>
+              <div class="chart-canvas-container">
+                <canvas id="chart-dashboard-overview"></canvas>
+              </div>
+            </div>
+
+            <!-- Right: Category Breakdown Donut -->
+            <div class="card">
+              <div class="card-header-flex">
+                <h3>Category Breakdown</h3>
+              </div>
+              <div class="donut-breakdown-wrapper">
+                <div class="donut-chart-box">
+                  <canvas id="chart-dashboard-categories"></canvas>
+                  <div class="donut-center-badge">
+                    <span class="amount" id="dash-donut-total">₹0</span>
+                    <span class="label">Total Spent</span>
+                  </div>
+                </div>
+                <div class="donut-legend-list" id="dash-donut-legend">
+                  <!-- Filled Dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Section: Recent Transactions & Financial Insight -->
+          <div class="dashboard-bottom-grid">
+            <!-- Recent Transactions Card -->
+            <div class="card">
+              <div class="card-header-flex">
+                <h3>Recent Transactions</h3>
+                <button class="btn-link" onclick="switchView('transactions')">
+                  <span>View All</span>
+                  <i data-lucide="arrow-right"></i>
+                </button>
+              </div>
+              <div class="recent-tx-list" id="dashboard-transactions">
+                <!-- Transactions rows inserted by JS -->
+              </div>
+            </div>
+
+            <!-- Financial Insight Card -->
+            <div class="card financial-insight-card">
+              <div class="card-header-flex">
+                <h3>Financial Insight</h3>
+              </div>
+              <div class="insight-body-flex">
+                <div class="insight-text-content">
+                  <p id="dash-insight-text">Analyzing your spending patterns across categories this month...</p>
+                  <button class="btn btn-outline btn-sm" onclick="switchView('analytics')">
+                    <span>View Details</span>
+                    <i data-lucide="arrow-right"></i>
+                  </button>
+                </div>
+                <div class="insight-graphic-bars" id="dash-insight-bars">
+                  <div class="insight-bar" style="height:25%;"></div>
+                  <div class="insight-bar" style="height:45%;"></div>
+                  <div class="insight-bar" style="height:35%;"></div>
+                  <div class="insight-bar" style="height:60%;"></div>
+                  <div class="insight-bar highlight" style="height:90%;"></div>
+                  <div class="insight-bar" style="height:50%;"></div>
+                  <div class="insight-bar" style="height:70%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 2: TRANSACTIONS (CRUD MANAGEMENT)
+             ========================================== -->
+        <section id="view-transactions" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Transactions</h1>
+              <p>Track and manage all your income and expenses.</p>
+            </div>
+            <div class="page-hero-controls">
+              <button class="btn btn-outline" onclick="exportReport('excel')" title="Export Excel">
+                <i data-lucide="file-spreadsheet"></i>
+                <span>Export Excel</span>
+              </button>
+              <button class="btn btn-outline" onclick="exportReport('pdf')" title="Export PDF">
+                <i data-lucide="file-text"></i>
+                <span>Export PDF</span>
+              </button>
+              <button class="btn btn-primary" onclick="openTransactionModal('expense')">
+                <i data-lucide="plus"></i>
+                <span>Add Transaction</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="card">
+            <!-- Filter Bar -->
+            <div class="tx-filter-bar">
+              <div class="tx-segmented-tabs">
+                <button class="tx-tab-btn active" id="tab-tx-all" onclick="setTxTypeFilter('all')">All</button>
+                <button class="tx-tab-btn" id="tab-tx-income" onclick="setTxTypeFilter('income')">Income</button>
+                <button class="tx-tab-btn" id="tab-tx-expense" onclick="setTxTypeFilter('expense')">Expenses</button>
+              </div>
+
+              <div class="tx-search-filter-row">
+                <div class="global-search-wrapper" style="max-width:240px;">
+                  <i data-lucide="search" class="global-search-icon"></i>
+                  <input type="text" id="tx-search" class="global-search-input" placeholder="Search transactions..." oninput="applyFilters()">
+                </div>
+
+                <select id="tx-category-filter" class="filter-select" onchange="applyFilters()">
+                  <option value="all">All Categories</option>
+                </select>
+
+                <select id="tx-date-filter" class="filter-select" onchange="applyFilters()">
+                  <option value="all">All Dates</option>
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month" selected>This Month</option>
+                  <option value="year">This Year</option>
+                </select>
+
+                <select id="tx-amount-filter" class="filter-select" onchange="applyFilters()">
+                  <option value="all">All Amounts</option>
+                  <option value="low">Under ₹500</option>
+                  <option value="mid">₹500 - ₹5,000</option>
+                  <option value="high">Above ₹5,000</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="table-responsive">
+              <table class="fintech-table">
+                <thead>
+                  <tr>
+                    <th onclick="toggleSort('date')" style="cursor:pointer;">Date <i data-lucide="arrow-up-down" style="width:13px; height:13px;"></i></th>
+                    <th onclick="toggleSort('description')" style="cursor:pointer;">Description</th>
+                    <th onclick="toggleSort('category')" style="cursor:pointer;">Category</th>
+                    <th>Payment Method</th>
+                    <th onclick="toggleSort('amount')" class="text-right" style="cursor:pointer; text-align:right;">Amount</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="transactions-list">
+                  <!-- Filled Dynamically -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Mobile Transaction Cards View -->
+            <div class="mobile-tx-cards-list" id="mobile-transactions-cards">
+              <!-- Filled Dynamically on Mobile -->
+            </div>
+
+            <!-- Pagination Row -->
+            <div class="pagination-row">
               <div>
-                <h3>Report Preview Summary</h3>
-                <p id="report-preview-range" class="subtitle">Compilation Range: Current Month</p>
+                Showing <strong id="pg-start-idx">1</strong> to <strong id="pg-end-idx">10</strong> of <strong id="pg-total-count">0</strong> transactions
               </div>
-              
-              <!-- Download buttons -->
-              <div class="export-actions hidden" id="report-export-actions">
-                <button onclick="exportReport('pdf')" class="btn btn-danger btn-sm">
-                  <i data-lucide="file-text"></i> PDF
+              <div class="pagination-controls">
+                <button class="btn-page-nav" id="btn-pg-prev" onclick="changePage(-1)" disabled title="Previous Page">
+                  <i data-lucide="chevron-left"></i>
                 </button>
-                <button onclick="exportReport('excel')" class="btn btn-success btn-sm">
-                  <i data-lucide="file-spreadsheet"></i> Excel
-                </button>
-                <button onclick="exportReport('csv')" class="btn btn-secondary btn-sm">
-                  <i data-lucide="download"></i> CSV
+                <button class="btn-page-nav" id="btn-pg-next" onclick="changePage(1)" disabled title="Next Page">
+                  <i data-lucide="chevron-right"></i>
                 </button>
               </div>
             </div>
-            
-            <div id="report-preview-empty" class="no-data-msg">
-              <i data-lucide="file-text"></i>
-              <p>Select report parameters and compile data to preview details.</p>
-            </div>
-            
-            <div id="report-preview-content" class="hidden">
-              <div class="report-metrics-grid">
-                <div class="report-metric">
-                  <span class="report-metric-lbl">Total Income</span>
-                  <span id="report-metric-income" class="report-metric-val text-success">?0.00</span>
-                </div>
-                <div class="report-metric">
-                  <span class="report-metric-lbl">Total Expenses</span>
-                  <span id="report-metric-expense" class="report-metric-val text-danger">?0.00</span>
-                </div>
-                <div class="report-metric">
-                  <span class="report-metric-lbl">Net Savings</span>
-                  <span id="report-metric-savings" class="report-metric-val">?0.00</span>
-                </div>
-                <div class="report-metric">
-                  <span class="report-metric-lbl">Highest Category</span>
-                  <span id="report-metric-highest" class="report-metric-val font-semibold">-</span>
-                </div>
-              </div>
-              
-              <div class="report-meta-details">
-                <p>Transactions in range: <strong id="report-meta-count">0</strong></p>
-                <p>Account Holder: <strong id="report-meta-user">demo</strong></p>
-              </div>
+          </div>
+        </section>
 
-              <div class="table-container large-table-container">
-                <table class="main-table">
-                  <thead>
-                    <tr>
-                      <th>Type</th>
-                      <th>Category</th>
-                      <th>Description</th>
-                      <th>Date</th>
-                      <th class="text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody id="report-transactions-list">
-                    <!-- Populated dynamically -->
-                  </tbody>
-                </table>
+        <!-- ==========================================
+             VIEW 3: BUDGETS MANAGEMENT
+             ========================================== -->
+        <section id="view-budgets" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Budgets</h1>
+              <p>Set and manage your monthly budgets across categories.</p>
+            </div>
+            <div class="page-hero-controls">
+              <button class="btn btn-primary" onclick="openBudgetModal()">
+                <i data-lucide="plus"></i>
+                <span>New Budget</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Budget Hero Row -->
+          <div class="budget-hero-row">
+            <!-- Overall Monthly Budget Card -->
+            <div class="card overall-budget-card">
+              <div class="card-header-flex">
+                <h3>Monthly Budget</h3>
+                <span class="badge badge-category" id="overall-budget-status-badge">Healthy</span>
+              </div>
+              <h2 class="budget-amount-hero" id="overall-budget-amount">₹0.00</h2>
+              <div class="budget-spent-sub" id="overall-budget-spent">₹0.00 spent of ₹0.00 (0%)</div>
+              <div class="budget-progress-track">
+                <div class="budget-progress-bar" id="overall-budget-progress" style="width: 0%;"></div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <!-- VIEW 5: ANALYTICS -->
-      <section id="view-analytics" class="content-view hidden">
-        <!-- Analytics Top Metrics -->
-        <div class="analytics-metrics-grid">
-          <div class="metric-card">
-            <span class="analytics-metric-label">Daily Avg Spending</span>
-            <h3 id="analytics-daily-avg" class="amount">?0.00</h3>
-            <p class="metric-desc">Average outflow logged per day</p>
-          </div>
-          <div class="metric-card">
-            <span class="analytics-metric-label">Weekly Avg Spending</span>
-            <h3 id="analytics-weekly-avg" class="amount">?0.00</h3>
-            <p class="metric-desc">Aggregated average spending rate</p>
-          </div>
-          <div class="metric-card">
-            <span class="analytics-metric-label">Savings Rate</span>
-            <h3 id="analytics-savings-rate" class="amount text-success">0%</h3>
-            <p class="metric-desc">Proportion of earnings saved</p>
-          </div>
-        </div>
-
-        <!-- Financial Insights Block -->
-        <div class="content-card insights-card">
-          <div class="card-header">
-            <h3>
-              <i data-lucide="sparkles" class="text-primary" style="display:inline-block; vertical-align:middle; margin-right:6px;"></i> 
-              Aura Financial Intelligence & Insights
-            </h3>
-          </div>
-          <div id="analytics-insights-list" class="insights-list">
-            <!-- Dynamically Populated -->
-          </div>
-        </div>
-
-        <!-- Charts Grid -->
-        <div class="analytics-layout-grid">
-          <!-- Monthly Spending Cash Flow Trends -->
-          <div class="content-card full-width-card">
-            <div class="card-header">
-              <h3>Monthly Cashflow Trends</h3>
-              <p class="subtitle">Income vs Expenses over time</p>
-            </div>
-            <div class="chart-wrapper">
-              <canvas id="chart-trends"></canvas>
+            <!-- Motivation Widget -->
+            <div class="card budget-motivation-card">
+              <h4>You're on track!</h4>
+              <p>Keep going to achieve your monthly financial targets and maximize your savings.</p>
             </div>
           </div>
 
-          <!-- Expense Composition (Pie/Doughnut) -->
-          <div class="content-card">
-            <div class="card-header">
-              <h3>Expense Composition</h3>
-              <p class="subtitle">Shares of category outflows</p>
+          <!-- Category Budgets Grid -->
+          <div style="margin-top:28px;">
+            <div class="card-header-flex" style="margin-bottom:16px;">
+              <h3>Category Budgets</h3>
             </div>
-            <div class="chart-wrapper flex-center">
-              <canvas id="chart-categories" class="doughnut-chart-canvas"></canvas>
+            <div class="category-budgets-grid" id="budgets-display-list">
+              <!-- Inserted Dynamically -->
+            </div>
+          </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 4: ANALYTICS & REPORTS
+             ========================================== -->
+        <section id="view-analytics" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Analytics</h1>
+              <p>Deep visual insights into your cashflow and spending behaviors.</p>
+            </div>
+            <div class="page-hero-controls">
+              <select id="analytics-time-range" class="filter-select" onchange="renderCharts()">
+                <option value="6">Last 6 Months</option>
+                <option value="3">Last 3 Months</option>
+                <option value="12">Last 12 Months</option>
+              </select>
+              <button class="btn btn-outline" onclick="exportReport('pdf')">
+                <i data-lucide="file-text"></i>
+                <span>Export PDF</span>
+              </button>
             </div>
           </div>
 
-          <!-- Budget Utilization Comparison (Bar) -->
-          <div class="content-card">
-            <div class="card-header">
+          <!-- Analytics Stat Metrics -->
+          <div class="analytics-metrics-grid">
+            <div class="card">
+              <span class="summary-card-title">TOTAL SPENDING (PERIOD)</span>
+              <h2 class="summary-card-amount" id="analytics-weekly-avg">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge negative"><i data-lucide="arrow-down-right"></i> Avg Outflow</span>
+              </div>
+            </div>
+            <div class="card">
+              <span class="summary-card-title">DAILY AVERAGE OUTFLOW</span>
+              <h2 class="summary-card-amount" id="analytics-daily-avg">₹0.00</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge positive"><i data-lucide="info"></i> Per day burn</span>
+              </div>
+            </div>
+            <div class="card">
+              <span class="summary-card-title">SAVINGS RATE</span>
+              <h2 class="summary-card-amount" id="analytics-savings-rate">0%</h2>
+              <div class="summary-card-trend">
+                <span class="trend-badge positive"><i data-lucide="arrow-up-right"></i> Target > 20%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="analytics-charts-grid">
+            <div class="card">
+              <div class="card-header-flex">
+                <h3>Monthly Cashflow Trends</h3>
+              </div>
+              <div class="chart-canvas-container" style="height:300px;">
+                <canvas id="chart-trends"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header-flex">
+                <h3>Expense Distribution</h3>
+              </div>
+              <div class="chart-canvas-container" style="height:300px;">
+                <canvas id="chart-categories"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Budget Utilization Bar Chart -->
+          <div class="card">
+            <div class="card-header-flex">
               <h3>Budget Utilization</h3>
-              <p class="subtitle">Limits vs Actual Outflows</p>
             </div>
-            <div class="chart-wrapper">
+            <div class="chart-canvas-container" style="height:260px;">
               <canvas id="chart-budget-utilization"></canvas>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- VIEW 6: APP PROFILE & ACCOUNT SETTINGS -->
-      <section id="view-profile" class="content-view hidden">
-        <div class="profile-dashboard">
-          
-          <!-- Hero Header Card -->
-          <div class="profile-hero-card">
-            <div class="profile-hero-bg">
-              <div class="profile-blob"></div>
+        <!-- ==========================================
+             VIEW 5: CATEGORIES MANAGEMENT
+             ========================================== -->
+        <section id="view-categories" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Categories</h1>
+              <p>Manage your expense and income classifications.</p>
             </div>
-            <div class="profile-hero-content">
-              <div class="profile-avatar-wrapper">
-                <div class="profile-avatar-large" id="profile-avatar-display">
-                  <span id="profile-avatar-initials">D</span>
-                </div>
-                <button class="profile-avatar-edit-btn" onclick="openAvatarModal()" title="Change Avatar">
-                  <i data-lucide="camera"></i>
-                </button>
-              </div>
-
-              <div class="profile-hero-info">
-                <div class="profile-name-row">
-                  <h2 id="profile-hero-name">Demo User</h2>
-                  <span class="profile-badge verified" id="profile-verified-badge" title="Verified Account">
-                    <i data-lucide="shield-check"></i>
-                    <span>Verified</span>
-                  </span>
-                  <span class="profile-badge auth-type" id="profile-auth-badge">Local</span>
-                </div>
-                <p class="profile-username" id="profile-hero-handle">@demouser</p>
-                <div class="profile-meta-row">
-                  <span><i data-lucide="mail"></i> <span id="profile-hero-email">demo@example.com</span></span>
-                  <span><i data-lucide="calendar"></i> Member since <span id="profile-hero-joined">May 2026</span></span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Quick Metrics Strip -->
-            <div class="profile-quick-stats">
-              <div class="profile-stat-box">
-                <span class="stat-label">Transactions</span>
-                <strong class="stat-val" id="profile-stat-tx-count">0</strong>
-              </div>
-              <div class="profile-stat-box">
-                <span class="stat-label">Active Budgets</span>
-                <strong class="stat-val" id="profile-stat-budget-count">0</strong>
-              </div>
-              <div class="profile-stat-box">
-                <span class="stat-label">Active Currency</span>
-                <strong class="stat-val" id="profile-stat-currency">₹ INR</strong>
-              </div>
-              <div class="profile-stat-box">
-                <span class="stat-label">Account Security</span>
-                <strong class="stat-val text-success">OTP Safeguard</strong>
-              </div>
+            <div class="page-hero-controls">
+              <button class="btn btn-primary" onclick="openCategoryModal()">
+                <i data-lucide="plus"></i>
+                <span>Add Category</span>
+              </button>
             </div>
           </div>
 
-          <!-- Profile Nav Tabs -->
-          <div class="profile-tabs-nav">
-            <button class="profile-tab-btn active" id="ptab-info" onclick="switchProfileTab('info')">
-              <i data-lucide="user"></i>
-              <span>Personal Info</span>
-            </button>
-            <button class="profile-tab-btn" id="ptab-preferences" onclick="switchProfileTab('preferences')">
-              <i data-lucide="sliders"></i>
-              <span>Preferences & App</span>
-            </button>
-            <button class="profile-tab-btn" id="ptab-security" onclick="switchProfileTab('security')">
-              <i data-lucide="lock"></i>
-              <span>Security & OTP</span>
-            </button>
-            <button class="profile-tab-btn" id="ptab-data" onclick="switchProfileTab('data')">
-              <i data-lucide="database"></i>
-              <span>Backup & Data</span>
-            </button>
+          <div class="tx-segmented-tabs" style="margin-bottom:20px; width:fit-content;">
+            <button class="tx-tab-btn active" id="tab-cat-expense" onclick="switchCategoryTab('expense')">Expense Categories</button>
+            <button class="tx-tab-btn" id="tab-cat-income" onclick="switchCategoryTab('income')">Income Categories</button>
           </div>
 
-          <!-- TAB 1: Personal Info -->
-          <div class="profile-tab-content" id="profile-pane-info">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>Personal Information</h3>
-                <p class="subtitle">Manage your personal identification details</p>
+          <div class="categories-grid" id="categories-grid-container">
+            <!-- Populated Dynamically -->
+          </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 6: SAVINGS GOALS
+             ========================================== -->
+        <section id="view-savings-goals" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Savings Goals</h1>
+              <p>Turn your dreams into achievable milestones.</p>
+            </div>
+            <div class="page-hero-controls">
+              <button class="btn btn-primary" onclick="openGoalModal()">
+                <i data-lucide="plus"></i>
+                <span>New Goal</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="goals-grid" id="goals-grid-container">
+            <!-- Populated Dynamically -->
+          </div>
+        </section>
+
+        <!-- ==========================================
+             VIEW 7: SETTINGS & PROFILE
+             ========================================== -->
+        <section id="view-profile" class="content-view hidden">
+          <div class="page-hero">
+            <div class="page-hero-info">
+              <h1>Settings</h1>
+              <p>Manage your personal profile, security and preferences.</p>
+            </div>
+          </div>
+
+          <div class="settings-layout">
+            <!-- Subnav Left -->
+            <div class="settings-subnav">
+              <div class="settings-tab-link active" onclick="switchSettingsPanel('profile')">
+                <i data-lucide="user"></i>
+                <span>Profile</span>
               </div>
-              <form id="profile-form-info" onsubmit="handleUpdateProfileInfo(event)">
-                <div class="form-grid-2">
-                  <div class="input-group">
-                    <label for="profile-name">Full Name</label>
-                    <div class="input-wrapper">
-                      <i data-lucide="badge-check" class="input-icon"></i>
-                      <input type="text" id="profile-name" placeholder="Your Full Name">
-                    </div>
-                  </div>
+              <div class="settings-tab-link" onclick="switchSettingsPanel('appearance')">
+                <i data-lucide="palette"></i>
+                <span>Appearance</span>
+              </div>
+              <div class="settings-tab-link" onclick="switchSettingsPanel('preferences')">
+                <i data-lucide="sliders"></i>
+                <span>Preferences</span>
+              </div>
+              <div class="settings-tab-link" onclick="switchSettingsPanel('security')">
+                <i data-lucide="shield"></i>
+                <span>Security</span>
+              </div>
+              <div class="settings-tab-link" onclick="switchSettingsPanel('data')">
+                <i data-lucide="database"></i>
+                <span>Data & Export</span>
+              </div>
+            </div>
 
-                  <div class="input-group">
-                    <label for="profile-username">Username</label>
-                    <div class="input-wrapper">
-                      <i data-lucide="at-sign" class="input-icon"></i>
-                      <input type="text" id="profile-username" required>
-                    </div>
+            <!-- Panel Content -->
+            <div class="settings-panel">
+              <!-- Subpanel 1: Profile Information -->
+              <div id="panel-settings-profile">
+                <h3 style="margin-bottom:16px;">Profile Information</h3>
+                
+                <!-- Avatar Upload Row -->
+                <div class="profile-photo-row">
+                  <div class="avatar-large-circle" id="profile-avatar-display">
+                    <span id="profile-avatar-initials">JR</span>
                   </div>
-                </div>
-
-                <div class="form-grid-2">
-                  <div class="input-group">
-                    <label for="profile-email">Email Address</label>
-                    <div class="input-wrapper">
-                      <i data-lucide="mail" class="input-icon"></i>
-                      <input type="email" id="profile-email" required>
-                    </div>
-                  </div>
-
-                  <div class="input-group">
-                    <label for="profile-phone">Phone Number</label>
-                    <div class="input-wrapper">
-                      <i data-lucide="phone" class="input-icon"></i>
-                      <input type="tel" id="profile-phone" placeholder="+91 98765 43210">
-                    </div>
-                  </div>
-                </div>
-
-                <div class="input-group">
-                  <label for="profile-bio">Personal Financial Note / Bio</label>
-                  <div class="input-wrapper">
-                    <textarea id="profile-bio" rows="2" placeholder="e.g. Focused on saving 30% of income and building wealth."></textarea>
+                  <div>
+                    <button class="btn btn-outline btn-sm" onclick="openAvatarModal()" style="margin-bottom:6px;">
+                      <i data-lucide="camera"></i>
+                      <span>Change Photo</span>
+                    </button>
+                    <p style="font-size:0.775rem; color:var(--text-secondary);">Upload JPG, PNG or capture live with your camera.</p>
                   </div>
                 </div>
 
-                <div class="form-actions-end" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                  <button type="button" class="btn btn-secondary" onclick="openAvatarModal()">
-                    <i data-lucide="camera"></i>
-                    <span>Change Profile Photo / Avatar</span>
-                  </button>
+                <form onsubmit="handleUpdateProfileInfo(event)">
+                  <div class="form-row-2" style="margin-bottom:14px;">
+                    <div class="form-group">
+                      <label for="profile-name">Full Name</label>
+                      <input type="text" id="profile-name" class="form-control" placeholder="Jay Rohit">
+                    </div>
+                    <div class="form-group">
+                      <label for="profile-username">Username</label>
+                      <input type="text" id="profile-username" class="form-control" placeholder="jayrohit">
+                    </div>
+                  </div>
+
+                  <div class="form-row-2" style="margin-bottom:14px;">
+                    <div class="form-group">
+                      <label for="profile-email">Email Address</label>
+                      <input type="email" id="profile-email" class="form-control" disabled style="opacity:0.7;">
+                    </div>
+                    <div class="form-group">
+                      <label for="profile-phone">Phone Number</label>
+                      <input type="tel" id="profile-phone" class="form-control" placeholder="+91 98765 43210">
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-bottom:20px;">
+                    <label for="profile-bio">Bio / Financial Motto</label>
+                    <input type="text" id="profile-bio" class="form-control" placeholder="Track • Plan • Grow">
+                  </div>
+
                   <button type="submit" class="btn btn-primary" id="btn-save-profile-info">
                     <i data-lucide="check"></i>
-                    <span>Save Changes</span>
+                    <span>Save Profile</span>
                   </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- TAB 2: Preferences & App Settings -->
-          <div class="profile-tab-content hidden" id="profile-pane-preferences">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>App Settings & Preferences</h3>
-                <p class="subtitle">Customize currency symbol, themes, and display settings</p>
+                </form>
               </div>
-              <form id="profile-form-prefs" onsubmit="handleUpdatePreferences(event)">
-                <div class="form-grid-2">
-                  <div class="input-group">
-                    <label for="profile-currency">Primary Currency</label>
-                    <select id="profile-currency" class="styled-select" onchange="previewCurrencyChange(this.value)">
-                      <option value="INR">₹ INR - Indian Rupee</option>
-                      <option value="USD">$ USD - US Dollar</option>
-                      <option value="EUR">€ EUR - Euro</option>
-                      <option value="GBP">£ GBP - British Pound</option>
-                      <option value="JPY">¥ JPY - Japanese Yen</option>
-                      <option value="CAD">C$ CAD - Canadian Dollar</option>
-                      <option value="AUD">A$ AUD - Australian Dollar</option>
-                      <option value="AED">AED - Emirati Dirham</option>
-                    </select>
-                  </div>
 
-                  <div class="input-group">
-                    <label for="profile-theme-select">Interface Theme</label>
-                    <select id="profile-theme-select" class="styled-select" onchange="applyThemePreference(this.value)">
-                      <option value="light">Light Theme (Crisp & Clean)</option>
-                      <option value="dark">Dark Theme (Midnight OLED)</option>
-                    </select>
-                  </div>
-                </div>
+              <!-- Subpanel 2: Appearance -->
+              <div id="panel-settings-appearance" class="hidden">
+                <h3 style="margin-bottom:8px;">Appearance</h3>
+                <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:16px;">Customize how AuraFinance looks on your device.</p>
 
-                <div class="form-grid-2">
-                  <div class="input-group">
-                    <label for="profile-date-format">Date Display Format</label>
-                    <select id="profile-date-format" class="styled-select">
-                      <option value="YYYY-MM-DD">YYYY-MM-DD (Standard ISO)</option>
-                      <option value="DD/MM/YYYY">DD/MM/YYYY (Indian / European)</option>
-                      <option value="MM/DD/YYYY">MM/DD/YYYY (US)</option>
-                    </select>
+                <div class="theme-preview-cards">
+                  <div class="theme-card-option" id="theme-opt-light" onclick="setAppTheme('light')">
+                    <i data-lucide="sun" style="width:28px; height:28px; color:#F59E0B; margin:0 auto 10px;"></i>
+                    <strong style="display:block;">Light Mode</strong>
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">Clean and crisp</span>
                   </div>
-
-                  <div class="input-group">
-                    <label for="profile-default-view">Default Landing Screen</label>
-                    <select id="profile-default-view" class="styled-select">
-                      <option value="dashboard">Dashboard Overview</option>
-                      <option value="transactions">Transactions Vault</option>
-                      <option value="budgets">Budgets & Limits</option>
-                      <option value="analytics">Analytics & Trends</option>
-                    </select>
+                  <div class="theme-card-option" id="theme-opt-dark" onclick="setAppTheme('dark')">
+                    <i data-lucide="moon" style="width:28px; height:28px; color:#7C3AED; margin:0 auto 10px;"></i>
+                    <strong style="display:block;">Dark Mode</strong>
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">Deep fintech palette</span>
+                  </div>
+                  <div class="theme-card-option" id="theme-opt-system" onclick="setAppTheme('system')">
+                    <i data-lucide="laptop" style="width:28px; height:28px; color:var(--text-secondary); margin:0 auto 10px;"></i>
+                    <strong style="display:block;">System Match</strong>
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">Auto-switch</span>
                   </div>
                 </div>
+              </div>
 
-                <div class="app-feature-card">
-                  <div class="feature-info">
-                    <h4>PWA Mobile App Experience</h4>
-                    <p>Install Aura Finance onto your smartphone or desktop for a fullscreen app experience.</p>
+              <!-- Subpanel 3: Preferences -->
+              <div id="panel-settings-preferences" class="hidden">
+                <h3 style="margin-bottom:16px;">Regional Preferences</h3>
+                <form onsubmit="handleUpdatePreferences(event)">
+                  <div class="form-group" style="max-width:320px; margin-bottom:16px;">
+                    <label for="profile-currency">Display Currency</label>
+                    <select id="profile-currency" class="form-control" onchange="previewCurrencyChange(this.value)">
+                      <option value="INR">INR (₹) - Indian Rupee</option>
+                      <option value="USD">USD ($) - US Dollar</option>
+                      <option value="EUR">EUR (€) - Euro</option>
+                      <option value="GBP">GBP (£) - British Pound</option>
+                      <option value="CAD">CAD (C$) - Canadian Dollar</option>
+                      <option value="AUD">AUD (A$) - Australian Dollar</option>
+                      <option value="AED">AED (AED) - UAE Dirham</option>
+                      <option value="JPY">JPY (¥) - Japanese Yen</option>
+                    </select>
                   </div>
-                  <button type="button" class="btn btn-secondary" onclick="triggerPwaInstall()">
-                    <i data-lucide="download"></i>
-                    <span>Install App</span>
-                  </button>
-                </div>
-
-                <div class="form-actions-end">
                   <button type="submit" class="btn btn-primary" id="btn-save-profile-prefs">
                     <i data-lucide="check"></i>
                     <span>Save Preferences</span>
                   </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- TAB 3: Security & Password -->
-          <div class="profile-tab-content hidden" id="profile-pane-security">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>Security & Authentication</h3>
-                <p class="subtitle">Password management and OTP authentication safeguards</p>
+                </form>
               </div>
 
-              <!-- OTP 2FA Status Card -->
-              <div class="security-status-card">
-                <div class="security-icon-circle">
-                  <i data-lucide="shield-check"></i>
-                </div>
-                <div class="security-status-text">
-                  <h4>Email OTP Authentication Active</h4>
-                  <p>Your account is protected with 6-digit OTP verification on registered email for password recovery and account safety.</p>
-                </div>
-                <div class="security-status-pill">Active</div>
-              </div>
-
-              <form id="profile-form-security" onsubmit="handleUpdatePassword(event)">
-                <div class="input-group">
-                  <label for="profile-new-password">New Password</label>
-                  <div class="input-wrapper">
-                    <i data-lucide="lock" class="input-icon"></i>
-                    <input type="password" id="profile-new-password" placeholder="At least 6 characters" minlength="6" oninput="checkPasswordStrength(this.value, 'profile-pwd-strength')">
+              <!-- Subpanel 4: Security -->
+              <div id="panel-settings-security" class="hidden">
+                <h3 style="margin-bottom:16px;">Security & Password</h3>
+                <form onsubmit="handleUpdatePassword(event)" style="max-width:380px;">
+                  <div class="form-group" style="margin-bottom:14px;">
+                    <label for="profile-new-password">New Password</label>
+                    <input type="password" id="profile-new-password" class="form-control" placeholder="••••••••" required>
                   </div>
-                  <div id="profile-pwd-strength" class="password-strength-bar"></div>
-                </div>
-
-                <div class="input-group">
-                  <label for="profile-confirm-password">Confirm New Password</label>
-                  <div class="input-wrapper">
-                    <i data-lucide="shield" class="input-icon"></i>
-                    <input type="password" id="profile-confirm-password" placeholder="Re-type new password" minlength="6">
+                  <div class="form-group" style="margin-bottom:18px;">
+                    <label for="profile-confirm-password">Confirm New Password</label>
+                    <input type="password" id="profile-confirm-password" class="form-control" placeholder="••••••••" required>
                   </div>
-                </div>
-
-                <div class="form-actions-end">
                   <button type="submit" class="btn btn-primary" id="btn-save-profile-pwd">
-                    <i data-lucide="key"></i>
+                    <i data-lucide="lock"></i>
                     <span>Update Password</span>
                   </button>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- TAB 4: Data & Backup -->
-          <div class="profile-tab-content hidden" id="profile-pane-data">
-            <div class="content-card">
-              <div class="card-header">
-                <h3>Data Export & Backup</h3>
-                <p class="subtitle">Safeguard and restore your personal ledger</p>
+                </form>
               </div>
 
-              <div class="data-actions-grid">
-                <!-- Backup Download Card -->
-                <div class="data-card">
-                  <div class="data-card-icon">
-                    <i data-lucide="download-cloud"></i>
-                  </div>
-                  <div class="data-card-body">
-                    <h4>Export Complete Ledger (JSON)</h4>
-                    <p>Download a complete JSON file containing all your transactions, categories, and active budget limits.</p>
-                    <button class="btn btn-secondary" onclick="handleExportData()">
+              <!-- Subpanel 5: Data Management -->
+              <div id="panel-settings-data" class="hidden">
+                <h3 style="margin-bottom:16px;">Data & Backup Management</h3>
+                <div style="display:flex; flex-direction:column; gap:16px; max-width:480px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px; border:1px solid var(--border-color); border-radius:var(--radius-lg);">
+                    <div>
+                      <strong style="display:block;">Export All Data</strong>
+                      <span style="font-size:0.8rem; color:var(--text-secondary);">Download JSON backup of all transactions and budgets</span>
+                    </div>
+                    <button class="btn btn-outline btn-sm" onclick="handleExportData()">
                       <i data-lucide="download"></i>
-                      <span>Download JSON Backup</span>
+                      <span>Export</span>
                     </button>
                   </div>
-                </div>
 
-                <!-- Restore Backup Card -->
-                <div class="data-card">
-                  <div class="data-card-icon">
-                    <i data-lucide="upload-cloud"></i>
-                  </div>
-                  <div class="data-card-body">
-                    <h4>Import Backup (JSON)</h4>
-                    <p>Restore transactions and budgets from a previously exported Aura Finance JSON backup file.</p>
-                    <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="handleFileSelected(event)">
-                    <button class="btn btn-secondary" onclick="document.getElementById('import-file-input').click()">
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px; border:1px solid var(--border-color); border-radius:var(--radius-lg);">
+                    <div>
+                      <strong style="display:block;">Import Backup</strong>
+                      <span style="font-size:0.8rem; color:var(--text-secondary);">Restore your records from a JSON file</span>
+                    </div>
+                    <label class="btn btn-outline btn-sm" style="cursor:pointer;">
                       <i data-lucide="upload"></i>
-                      <span>Select JSON File</span>
+                      <span>Import</span>
+                      <input type="file" id="import-file-input" accept=".json" onchange="handleFileSelected(event)" class="hidden">
+                    </label>
+                  </div>
+
+                  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px; border:1px solid var(--expense-subtle); background-color:var(--expense-subtle); border-radius:var(--radius-lg);">
+                    <div>
+                      <strong style="display:block; color:var(--expense);">Clear All Records</strong>
+                      <span style="font-size:0.8rem; color:var(--text-secondary);">Permanently remove transactions and budgets</span>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="handleClearAllTransactions()">
+                      <i data-lucide="trash-2"></i>
+                      <span>Reset</span>
                     </button>
                   </div>
-                </div>
-              </div>
-
-              <!-- Danger Zone -->
-              <div class="danger-zone-card">
-                <div class="danger-zone-header">
-                  <i data-lucide="alert-triangle"></i>
-                  <div>
-                    <h4>Danger Zone</h4>
-                    <p>Irreversible actions for your personal ledger</p>
-                  </div>
-                </div>
-                <div class="danger-zone-actions">
-                  <button class="btn btn-danger" onclick="handleClearAllTransactions()">
-                    <i data-lucide="trash-2"></i>
-                    <span>Clear All Transactions</span>
-                  </button>
                 </div>
               </div>
             </div>
           </div>
+        </section>
 
-        </div>
-      </section>
+      </div>
     </main>
+
+    <!-- ==========================================
+         MOBILE BOTTOM NAVIGATION BAR
+         ========================================== -->
+    <nav id="mobile-nav" class="mobile-bottom-nav">
+      <button class="mobile-nav-btn active" id="mobile-nav-dashboard" onclick="switchView('dashboard')">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Home</span>
+      </button>
+      <button class="mobile-nav-btn" id="mobile-nav-analytics" onclick="switchView('analytics')">
+        <i data-lucide="line-chart"></i>
+        <span>Analytics</span>
+      </button>
+      <button class="btn btn-primary" id="mobile-fab" onclick="openTransactionModal('expense')" style="width:44px; height:44px; border-radius:50%; padding:0; box-shadow:0 4px 12px var(--primary-glow);" title="Add Transaction">
+        <i data-lucide="plus" style="width:22px; height:22px;"></i>
+      </button>
+      <button class="mobile-nav-btn" id="mobile-nav-categories" onclick="switchView('categories')">
+        <i data-lucide="layout-grid"></i>
+        <span>Categories</span>
+      </button>
+      <button class="mobile-nav-btn" id="mobile-nav-profile" onclick="switchView('profile')">
+        <i data-lucide="settings"></i>
+        <span>Settings</span>
+      </button>
+    </nav>
   </div>
 
   <!-- ==========================================
-       MODALS
+       MODAL 1: ADD / EDIT TRANSACTION
        ========================================== -->
-  <!-- Transaction Add/Edit Modal -->
-  <div id="transaction-modal" class="modal-overlay hidden">
-    <div class="modal-card">
+  <div id="transaction-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="modal-tx-title">Add New Transaction</h3>
-        <button class="btn-close" onclick="closeTransactionModal()">
+        <h3 id="modal-tx-title">Add Transaction</h3>
+        <button class="btn-modal-close" onclick="closeTransactionModal()">
           <i data-lucide="x"></i>
         </button>
       </div>
 
       <form id="transaction-form" onsubmit="handleSaveTransaction(event)">
-        <!-- Hidden input for ID when editing -->
         <input type="hidden" id="modal-tx-id">
+        <input type="hidden" id="modal-tx-category">
 
-        <div class="input-group">
-          <label>Flow Type</label>
-          <div class="toggle-switch-container">
-            <input type="radio" name="tx-type" id="type-expense" value="expense" checked>
-            <label for="type-expense" class="toggle-label toggle-left">Expense</label>
-
-            <input type="radio" name="tx-type" id="type-income" value="income">
-            <label for="type-income" class="toggle-label toggle-right">Income</label>
+        <div class="modal-body">
+          <!-- Segmented Type Selector -->
+          <div class="type-segmented-control">
+            <button type="button" class="type-toggle-btn active expense" id="type-expense" onclick="setModalTxType('expense')">Expense</button>
+            <button type="button" class="type-toggle-btn income" id="type-income" onclick="setModalTxType('income')">Income</button>
           </div>
-        </div>
 
-        <div class="modal-form-row">
-          <div class="input-group">
-            <label for="modal-tx-amount">Amount (?)</label>
-            <div class="input-wrapper">
-              <span class="currency-prefix">?</span>
-              <input type="number" id="modal-tx-amount" placeholder="0.00" min="0.01" step="any" required>
+          <!-- Large Amount Hero Input -->
+          <div class="amount-hero-wrapper">
+            <span class="amount-currency-symbol" id="modal-amount-symbol">₹</span>
+            <input type="number" step="0.01" min="0.01" id="modal-tx-amount" class="amount-hero-input" placeholder="0.00" required>
+          </div>
+
+          <!-- Category Icon Grid -->
+          <div class="form-group">
+            <label>Select Category</label>
+            <div class="category-picker-grid" id="modal-category-picker-grid">
+              <!-- Populated by JavaScript with Lucide Icons -->
             </div>
           </div>
 
-          <div class="input-group">
-            <label for="modal-tx-date">Date</label>
-            <div class="input-wrapper">
-              <i data-lucide="calendar" class="input-icon"></i>
-              <input type="date" id="modal-tx-date" required>
+          <!-- Date & Payment Method Row -->
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="modal-tx-date">Date</label>
+              <input type="date" id="modal-tx-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="modal-tx-payment-method">Payment Method</label>
+              <select id="modal-tx-payment-method" class="form-control">
+                <option value="UPI">UPI</option>
+                <option value="Card">Debit/Credit Card</option>
+                <option value="Cash">Cash</option>
+                <option value="Net Banking">Net Banking</option>
+              </select>
             </div>
           </div>
-        </div>
 
-        <div class="input-group">
-          <label for="modal-tx-category">Category</label>
-          <select id="modal-tx-category" required>
-            <!-- Dynamically populated -->
-          </select>
-        </div>
-
-        <div class="input-group">
-          <label for="modal-tx-desc">Description</label>
-          <div class="input-wrapper">
-            <i data-lucide="file-text" class="input-icon"></i>
-            <input type="text" id="modal-tx-desc" placeholder="e.g. Weekly grocery bills">
+          <!-- Description -->
+          <div class="form-group">
+            <label for="modal-tx-desc">Description / Notes (Optional)</label>
+            <input type="text" id="modal-tx-desc" class="form-control" placeholder="e.g. Lunch with friends, groceries...">
           </div>
         </div>
 
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" onclick="closeTransactionModal()">Cancel</button>
-          <button type="submit" class="btn btn-success" id="modal-tx-submit-btn">Save Record</button>
+          <button type="submit" class="btn btn-primary" id="modal-tx-submit-btn">
+            <span>Add Transaction</span>
+          </button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- ==========================================
-       MODAL 2: FORGOT PASSWORD WITH OTP FLOW
+       MODAL 2: BUDGET CREATION & EDIT
        ========================================== -->
-  <div id="forgot-password-modal" class="modal-overlay hidden">
-    <div class="modal-card modal-auth-card">
+  <div id="budget-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
       <div class="modal-header">
-        <div class="modal-title-with-icon">
-          <div class="modal-icon-badge">
-            <i data-lucide="key-round"></i>
-          </div>
-          <div>
-            <h3>Account Recovery</h3>
-            <p class="subtitle" id="fp-subtitle">Verify your registered email address</p>
-          </div>
-        </div>
-        <button class="btn-close" onclick="closeForgotPasswordModal()">
+        <h3 id="budget-modal-title">Set Category Budget</h3>
+        <button class="btn-modal-close" onclick="closeBudgetModal()">
           <i data-lucide="x"></i>
         </button>
       </div>
 
-      <!-- STEP 1: Enter Registered Email -->
-      <div id="fp-step-1" class="fp-step-pane">
-        <form onsubmit="handleSendOtp(event)">
-          <p class="fp-instruction">Enter your registered email address. We'll send you a secure 6-digit one-time verification code.</p>
-          <div class="input-group">
-            <label for="fp-email">Registered Email</label>
-            <div class="input-wrapper">
-              <i data-lucide="mail" class="input-icon"></i>
-              <input type="email" id="fp-email" placeholder="e.g. yourname@example.com" required>
-            </div>
+      <form id="budget-form" onsubmit="handleSetBudget(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="budget-category">Category</label>
+            <select id="budget-category" class="form-control" required>
+              <!-- Filled Dynamically -->
+            </select>
           </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="btn-fp-send-otp">
-              <span>Send OTP Code</span>
-              <i data-lucide="arrow-right"></i>
-            </button>
+
+          <div class="form-group">
+            <label for="budget-limit">Monthly Limit Amount</label>
+            <input type="number" step="0.01" min="1" id="budget-limit" class="form-control" placeholder="e.g. 5000" required>
           </div>
-        </form>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeBudgetModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-budget">Save Budget</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 3: CUSTOM CATEGORY CREATION
+       ========================================== -->
+  <div id="category-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Add Category</h3>
+        <button class="btn-modal-close" onclick="closeCategoryModal()">
+          <i data-lucide="x"></i>
+        </button>
       </div>
 
-      <!-- STEP 2: Enter 6-Digit OTP -->
-      <div id="fp-step-2" class="fp-step-pane hidden">
-        <form onsubmit="handleVerifyOtp(event)">
-          <p class="fp-instruction">
-            Enter the 6-digit code sent to <strong id="fp-target-email" class="text-primary">your email</strong>.
-          </p>
-
-          <!-- Dev Notification Alert if SMTP not configured -->
-          <div id="fp-dev-otp-banner" class="dev-otp-banner hidden">
-            <i data-lucide="bell"></i>
-            <div>
-              <span>Verification Code Preview:</span>
-              <strong id="fp-dev-otp-code">123456</strong>
+      <form onsubmit="handleSaveCustomCategory(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Category Type</label>
+            <div class="tx-segmented-tabs" style="width:100%;">
+              <button type="button" class="tx-tab-btn active" id="modal-cat-type-expense" onclick="setCustomCategoryType('expense')" style="flex:1;">Expense</button>
+              <button type="button" class="tx-tab-btn" id="modal-cat-type-income" onclick="setCustomCategoryType('income')" style="flex:1;">Income</button>
             </div>
           </div>
 
-          <!-- 6-digit input fields -->
-          <div class="otp-inputs-wrapper">
-            <input type="text" class="otp-digit" id="otp-1" maxlength="1" pattern="[0-9]" inputmode="numeric" required autofocus>
-            <input type="text" class="otp-digit" id="otp-2" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-            <input type="text" class="otp-digit" id="otp-3" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-            <input type="text" class="otp-digit" id="otp-4" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-            <input type="text" class="otp-digit" id="otp-5" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
-            <input type="text" class="otp-digit" id="otp-6" maxlength="1" pattern="[0-9]" inputmode="numeric" required>
+          <div class="form-group">
+            <label for="custom-cat-name">Category Name</label>
+            <input type="text" id="custom-cat-name" class="form-control" placeholder="e.g. Fitness, Subscriptions" required>
           </div>
 
-          <div class="otp-resend-row">
-            <span id="otp-timer-text">Resend code in <strong id="otp-timer-count">60</strong>s</span>
-            <button type="button" id="btn-resend-otp" class="btn-text-link hidden" onclick="handleResendOtp()">Resend Code</button>
+          <div class="form-group">
+            <label>Select Icon</label>
+            <div class="category-picker-grid" id="custom-cat-icon-grid">
+              <!-- Filled with Lucide icons -->
+            </div>
           </div>
+        </div>
 
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="fpGoToStep(1)">Back</button>
-            <button type="submit" class="btn btn-primary" id="btn-fp-verify-otp">
-              <span>Verify OTP</span>
-              <i data-lucide="check-circle-2"></i>
-            </button>
-          </div>
-        </form>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Category</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 4: SAVINGS GOAL CREATION
+       ========================================== -->
+  <div id="goal-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="goal-modal-title">New Savings Goal</h3>
+        <button class="btn-modal-close" onclick="closeGoalModal()">
+          <i data-lucide="x"></i>
+        </button>
       </div>
 
-      <!-- STEP 3: Enter New Password -->
-      <div id="fp-step-3" class="fp-step-pane hidden">
-        <form onsubmit="handleResetPassword(event)">
-          <p class="fp-instruction">Identity verified. Choose a strong new password for your Aura Finance account.</p>
-          
-          <div class="input-group">
+      <form onsubmit="handleSaveGoal(event)">
+        <input type="hidden" id="goal-id">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="goal-name">Goal Name</label>
+            <input type="text" id="goal-name" class="form-control" placeholder="e.g. Trip to Japan, New Laptop" required>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label for="goal-target">Target Amount</label>
+              <input type="number" step="0.01" min="1" id="goal-target" class="form-control" placeholder="50000" required>
+            </div>
+            <div class="form-group">
+              <label for="goal-saved">Current Saved</label>
+              <input type="number" step="0.01" min="0" id="goal-saved" class="form-control" placeholder="0">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="goal-date">Target Date</label>
+            <input type="date" id="goal-date" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeGoalModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 5: DEPOSIT / ADD FUNDS TO GOAL
+       ========================================== -->
+  <div id="goal-deposit-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:380px;">
+      <div class="modal-header">
+        <h3>Add Funds to Goal</h3>
+        <button class="btn-modal-close" onclick="closeGoalDepositModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleSaveGoalDeposit(event)">
+        <input type="hidden" id="deposit-goal-id">
+        <div class="modal-body">
+          <p id="deposit-goal-info" style="font-size:0.9rem; color:var(--text-secondary);"></p>
+          <div class="form-group">
+            <label for="deposit-goal-amount">Amount to Deposit</label>
+            <input type="number" step="0.01" min="1" id="deposit-goal-amount" class="form-control" placeholder="e.g. 5000" required>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeGoalDepositModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm Deposit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 6: NOTIFICATIONS POPOVER / MODAL
+       ========================================== -->
+  <div id="notifications-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:400px;">
+      <div class="modal-header">
+        <h3>Notifications</h3>
+        <button class="btn-modal-close" onclick="closeNotificationsModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body" id="notifications-list" style="padding:16px;">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 7: UPGRADE TO PRO MODAL
+       ========================================== -->
+  <div id="pro-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:420px; text-align:center;">
+      <div class="modal-header" style="justify-content:flex-end; border-bottom:none;">
+        <button class="btn-modal-close" onclick="closeProModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body" style="padding:0 24px 24px; text-align:center;">
+        <div style="width:64px; height:64px; border-radius:50%; background:linear-gradient(135deg, var(--primary) 0%, #3B82F6 100%); color:#FFF; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; box-shadow:0 8px 24px var(--primary-glow);">
+          <i data-lucide="zap" style="width:32px; height:32px;"></i>
+        </div>
+        <h2 style="font-size:1.4rem; font-weight:700; margin-bottom:8px;">AuraFinance Pro</h2>
+        <p style="font-size:0.9rem; color:var(--text-secondary); margin-bottom:20px;">Unlock automated multi-currency tracking, AI receipt OCR, unlimited categories, and deep spreadsheet syncing.</p>
+
+        <div style="background-color:var(--bg-secondary); border-radius:var(--radius-lg); padding:16px; text-align:left; margin-bottom:20px; font-size:0.85rem; display:flex; flex-direction:column; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check" style="width:16px; height:16px; color:var(--income);"></i><span>Automated Smart Budget Alerts</span></div>
+          <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check" style="width:16px; height:16px; color:var(--income);"></i><span>Unlimited Custom Categories & Goals</span></div>
+          <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="check" style="width:16px; height:16px; color:var(--income);"></i><span>Priority Cloud Sync & PDF/Excel Exports</span></div>
+        </div>
+
+        <button class="btn btn-primary" style="width:100%; height:44px;" onclick="handleProUpgradeClick()">
+          <span>Get AuraFinance Pro - ₹299/mo</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL 8: FORGOT PASSWORD & OTP RESET
+       ========================================== -->
+  <div id="forgot-password-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="fp-title">Reset Password</h3>
+        <button class="btn-modal-close" onclick="closeForgotPasswordModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p id="fp-subtitle" style="font-size:0.875rem; color:var(--text-secondary);">Enter your email to receive a 6-digit verification code.</p>
+
+        <!-- Step 1: Send OTP -->
+        <div id="fp-step-1">
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="fp-email">Registered Email Address</label>
+            <input type="email" id="fp-email" class="form-control" placeholder="name@example.com" required>
+          </div>
+          <button class="btn btn-primary" style="width:100%;" id="btn-fp-send-otp" onclick="handleSendOtp()">
+            <span>Send Security Code</span>
+            <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+
+        <!-- Step 2: Verify OTP -->
+        <div id="fp-step-2" class="hidden">
+          <p style="font-size:0.85rem; margin-bottom:14px;">Code sent to <strong id="fp-target-email"></strong></p>
+          <div id="fp-dev-otp-banner" class="hidden" style="padding:10px; background-color:var(--primary-subtle); border-radius:var(--radius-md); font-family:monospace; margin-bottom:14px;">
+            Code: <span id="fp-dev-otp-code"></span>
+          </div>
+
+          <div style="display:flex; gap:8px; justify-content:center; margin-bottom:18px;">
+            <input type="text" maxlength="1" id="otp-1" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+            <input type="text" maxlength="1" id="otp-2" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+            <input type="text" maxlength="1" id="otp-3" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+            <input type="text" maxlength="1" id="otp-4" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+            <input type="text" maxlength="1" id="otp-5" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+            <input type="text" maxlength="1" id="otp-6" class="form-control" style="width:44px; height:48px; text-align:center; font-size:1.3rem; font-weight:700;">
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <span id="otp-timer-text" style="font-size:0.8rem; color:var(--text-secondary);">Resend code in <strong id="otp-timer-count">60</strong>s</span>
+            <button class="btn-link" id="btn-resend-otp" onclick="handleResendOtp()" disabled>Resend Code</button>
+          </div>
+
+          <button class="btn btn-primary" style="width:100%;" id="btn-fp-verify-otp" onclick="handleVerifyOtp()">
+            <span>Verify Code</span>
+          </button>
+        </div>
+
+        <!-- Step 3: Enter New Password -->
+        <div id="fp-step-3" class="hidden">
+          <div class="form-group" style="margin-bottom:14px;">
             <label for="fp-new-password">New Password</label>
-            <div class="input-wrapper">
-              <i data-lucide="lock" class="input-icon"></i>
-              <input type="password" id="fp-new-password" placeholder="At least 6 characters" minlength="6" required oninput="checkPasswordStrength(this.value, 'fp-pwd-strength')">
-            </div>
-            <div id="fp-pwd-strength" class="password-strength-bar"></div>
+            <input type="password" id="fp-new-password" class="form-control" placeholder="••••••••" required>
           </div>
+          <div class="form-group" style="margin-bottom:18px;">
+            <label for="fp-confirm-password">Confirm Password</label>
+            <input type="password" id="fp-confirm-password" class="form-control" placeholder="••••••••" required>
+          </div>
+          <button class="btn btn-primary" style="width:100%;" id="btn-fp-reset-pwd" onclick="handleResetPassword()">
+            <span>Update Password</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-          <div class="input-group">
-            <label for="fp-confirm-password">Confirm New Password</label>
-            <div class="input-wrapper">
-              <i data-lucide="shield" class="input-icon"></i>
-              <input type="password" id="fp-confirm-password" placeholder="Re-enter new password" minlength="6" required>
-            </div>
-          </div>
+  <!-- ==========================================
+       MODAL 9: GOOGLE SIGN-IN SELECTOR
+       ========================================== -->
+  <div id="google-auth-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:400px;">
+      <div class="modal-header">
+        <h3 style="display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+            <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+            <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+            <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+          </svg>
+          <span>Sign in with Google</span>
+        </h3>
+        <button class="btn-modal-close" onclick="closeGoogleAuthModal()">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
 
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="closeForgotPasswordModal()">Cancel</button>
-            <button type="submit" class="btn btn-success" id="btn-fp-reset-pwd">
-              <span>Reset & Sign In</span>
-              <i data-lucide="check"></i>
-            </button>
+      <div class="modal-body" style="padding:20px;">
+        <p id="google-modal-subtitle" style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:16px;">Choose an account to continue to <strong>AuraFinance</strong></p>
+        
+        <div id="google-auth-content" style="display:flex; flex-direction:column; gap:8px;">
+          <!-- Dynamically populated Google account list -->
+        </div>
+
+        <div class="auth-divider">
+          <span>or enter your google account</span>
+        </div>
+
+        <form onsubmit="handleGoogleFormSubmit(event)">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label for="google-input-email">Google Email Address</label>
+            <input type="email" id="google-input-email" class="form-control" placeholder="you@gmail.com" required>
           </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label for="google-input-name">Your Full Name</label>
+            <input type="text" id="google-input-name" class="form-control" placeholder="e.g. Jay Rohit" required>
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">
+            <span>Continue with this account</span>
+            <i data-lucide="arrow-right"></i>
+          </button>
         </form>
       </div>
-
-      <!-- STEP 4: Reset Success -->
-      <div id="fp-step-4" class="fp-step-pane hidden text-center">
-        <div class="fp-success-icon">
-          <i data-lucide="check-circle" class="text-success"></i>
-        </div>
-        <h4>Password Reset Successfully!</h4>
-        <p class="fp-instruction">Your account password has been updated. You can now log into Aura Finance with your new credentials.</p>
-        <button class="btn btn-primary btn-block" onclick="finishForgotPassword()">
-          <span>Proceed to Login</span>
-          <i data-lucide="arrow-right"></i>
-        </button>
-      </div>
-
     </div>
   </div>
 
   <!-- ==========================================
-       MODAL 3: GOOGLE / GMAIL ACCOUNT SIGN IN
+       MODAL 10: AVATAR & PHOTO UPLOAD
        ========================================== -->
-  <div id="google-auth-modal" class="modal-overlay hidden">
-    <div class="modal-card modal-google-card">
-      <div class="google-modal-header">
-        <svg viewBox="0 0 24 24" width="28" height="28">
-          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
-          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
-          <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.98 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
-          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-        </svg>
-        <h3>Sign in with Google</h3>
-        <p id="google-modal-subtitle">Choose an account to continue to <strong>Aura Finance</strong></p>
-        <button class="btn-close" onclick="closeGoogleAuthModal()">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-
-      <!-- Dynamically populated: either remembered accounts list or authentic Google email sign-in form -->
-      <div id="google-auth-content" class="google-auth-content">
-        <!-- Rendered by renderGoogleAuthContent() in app.js -->
-      </div>
-
-      <div class="google-modal-footer">
-        <i data-lucide="shield-check"></i>
-        <span>To continue, Google will share your email, name, and profile details with Aura Finance securely.</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==========================================
-       MODAL 4: AVATAR / PROFILE PHOTO PICKER
-       ========================================== -->
-  <div id="avatar-modal" class="modal-overlay hidden">
-    <div class="modal-card modal-avatar-card">
+  <div id="avatar-modal" class="modal-backdrop hidden">
+    <div class="modal-dialog" style="max-width:440px;">
       <div class="modal-header">
-        <div class="modal-title-with-icon">
-          <div class="modal-icon-badge">
-            <i data-lucide="camera"></i>
-          </div>
-          <div>
-            <h3>Profile Photo & Avatar</h3>
-            <p class="subtitle" style="margin:0;">Personalize your profile picture</p>
-          </div>
-        </div>
-        <button class="btn-close" onclick="closeAvatarModal()">
+        <h3>Choose Profile Photo</h3>
+        <button class="btn-modal-close" onclick="closeAvatarModal()">
           <i data-lucide="x"></i>
         </button>
       </div>
 
-      <!-- Hidden file inputs for Camera and Gallery -->
-      <input type="file" id="avatar-camera-input" accept="image/*" capture="user" style="display:none;" onchange="handleAvatarFileChosen(event)">
-      <input type="file" id="avatar-gallery-input" accept="image/*" style="display:none;" onchange="handleAvatarFileChosen(event)">
+      <div class="modal-body">
+        <p style="font-size:0.875rem; color:var(--text-secondary); margin-bottom:16px;">Upload a personal picture using your camera or phone gallery.</p>
 
-      <!-- Photo Upload Actions -->
-      <div class="avatar-photo-upload-section">
-        <label class="section-label">Upload Personal Photo</label>
-        <div class="avatar-photo-buttons">
-          <button type="button" class="btn btn-primary btn-upload-opt" onclick="document.getElementById('avatar-camera-input').click()">
-            <i data-lucide="camera"></i>
-            <span>Take Photo (Camera)</span>
-          </button>
-          <button type="button" class="btn btn-secondary btn-upload-opt" onclick="document.getElementById('avatar-gallery-input').click()">
+        <!-- Personal Photo Upload Options -->
+        <div style="display:flex; gap:12px; margin-bottom:20px;">
+          <label class="btn btn-outline" style="flex:1; cursor:pointer;">
             <i data-lucide="image"></i>
-            <span>Choose from Gallery</span>
-          </button>
+            <span>Upload Photo</span>
+            <input type="file" id="avatar-file-input" accept="image/*" onchange="handleAvatarFileChosen(event)" class="hidden">
+          </label>
+          <label class="btn btn-outline" style="flex:1; cursor:pointer;">
+            <i data-lucide="camera"></i>
+            <span>Use Camera</span>
+            <input type="file" id="avatar-camera-input" accept="image/*" capture="user" onchange="handleAvatarFileChosen(event)" class="hidden">
+          </label>
         </div>
 
-        <div id="avatar-custom-preview-area" class="avatar-custom-preview hidden">
-          <div class="avatar-preview-wrapper">
-            <img id="avatar-preview-img" src="" alt="Custom Avatar Preview" class="avatar-preview-img">
-          </div>
-          <button type="button" class="btn-text text-danger" onclick="removePersonalPhoto()">
-            <i data-lucide="trash-2"></i>
-            <span>Remove Photo & Use Initials</span>
-          </button>
+        <!-- Custom Image Preview Area -->
+        <div id="avatar-custom-preview-area" class="hidden" style="text-align:center; margin-bottom:16px;">
+          <img id="avatar-preview-img" style="width:96px; height:96px; border-radius:50%; object-fit:cover; margin:0 auto 10px; box-shadow:var(--shadow-md);">
+          <button class="btn-link" style="color:var(--expense);" onclick="removePersonalPhoto()">Remove Photo</button>
         </div>
-      </div>
 
-      <!-- Emoji Presets Section -->
-      <div class="avatar-emoji-section">
         <div class="auth-divider">
-          <span>or choose an avatar icon</span>
+          <span>or choose an initial style</span>
         </div>
-        <div class="avatar-grid" id="avatar-grid-list">
-          <!-- Generated by JS -->
-        </div>
-      </div>
 
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" onclick="closeAvatarModal()">Close</button>
+        <!-- Preset Clean Color Avatars (NO EMOJIS) -->
+        <div id="avatar-grid-list" style="display:grid; grid-template-columns:repeat(5, 1fr); gap:10px;">
+          <!-- Populated by JS -->
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ==========================================
-       MOBILE FLOATING ACTION BUTTON (FAB)
-       ========================================== -->
-  <button id="mobile-fab" class="mobile-fab hidden" onclick="openTransactionModal('expense')" title="Quick Add Record">
-    <i data-lucide="plus"></i>
-  </button>
-
-  <!-- ==========================================
-       BOTTOM MOBILE NAVIGATION BAR
-       ========================================== -->
-  <nav id="mobile-nav" class="mobile-nav">
-    <a href="#" id="mobile-nav-dashboard" class="mobile-nav-item active" onclick="switchView('dashboard')">
-      <i data-lucide="layout-dashboard"></i>
-      <span>Dashboard</span>
-    </a>
-    <a href="#" id="mobile-nav-transactions" class="mobile-nav-item" onclick="switchView('transactions')">
-      <i data-lucide="arrow-left-right"></i>
-      <span>Transact</span>
-    </a>
-    <a href="#" id="mobile-nav-budgets" class="mobile-nav-item" onclick="switchView('budgets')">
-      <i data-lucide="pie-chart"></i>
-      <span>Budgets</span>
-    </a>
-    <a href="#" id="mobile-nav-reports" class="mobile-nav-item" onclick="switchView('reports')">
-      <i data-lucide="file-text"></i>
-      <span>Reports</span>
-    </a>
-    <a href="#" id="mobile-nav-analytics" class="mobile-nav-item" onclick="switchView('analytics')">
-      <i data-lucide="trending-up"></i>
-      <span>Trends</span>
-    </a>
-    <a href="#" id="mobile-nav-profile" class="mobile-nav-item" onclick="switchView('profile')">
-      <i data-lucide="user"></i>
-      <span>Profile</span>
-    </a>
-  </nav>
-
+  <!-- Core Application Scripts -->
   <script src="app.js"></script>
 </body>
 </html>
